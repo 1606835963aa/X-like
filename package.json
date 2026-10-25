@@ -5,7 +5,7 @@
   "private": true,
   "description": "收藏与点赞的个人资料库",
   "author": "Wind",
-  "license": "UNLICENSED",
+  "license": "AGPL-3.0-only",
   "type": "module",
   "main": "dist/desktop/main.cjs",
   "scripts": {

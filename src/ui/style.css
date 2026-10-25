@@ -33,7 +33,7 @@ select { cursor: pointer; }
 .sidebar { width: var(--layout-sidebar); flex-shrink: 0; padding: 24px 12px 16px; display: flex; flex-direction: column; background: var(--color-sidebar); border-right: 1px solid var(--color-line); overflow: auto; backdrop-filter: saturate(160%) blur(24px); }
 :root[data-platform=darwin] .sidebar { padding-top: 56px; }
 .brand { display: flex; align-items: center; gap: 12px; padding: 0 12px 32px; }
-.brand-mark { width: 36px; height: 36px; display: grid; place-items: center; color: var(--color-on-action); background: linear-gradient(160deg, var(--color-primary-400), var(--color-action)); border-radius: var(--radius-sm); box-shadow: inset 0 1px 0 rgb(255 255 255 / .3); }
+.brand-mark { width: 36px; height: 36px; display: block; flex-shrink: 0; }
 .brand strong { display: block; font-size: 18px; letter-spacing: .5px; }
 .brand span { display: block; font-size: 12px; color: var(--color-subtle); margin-top: 2px; }
 .section-label { display: block; padding: 0 12px 8px; font-size: 12px; color: var(--color-subtle); font-weight: 600; }
@@ -190,8 +190,8 @@ button.post-tag:hover { background: var(--color-soft-surface); }
 .list .card-footer { padding-top: 16px; }
 .pagination { display: flex; justify-content: center; align-items: center; gap: 24px; margin-top: 32px; color: var(--color-subtle); font-size: 12px; }
 .welcome { padding: 64px 24px; text-align: center; max-width: 640px; margin: 16px auto; }
-.welcome-art { margin: 0 auto 32px; width: 80px; height: 80px; display: grid; place-items: center; background: var(--color-selection); color: var(--color-accent-text); border-radius: var(--radius-xl); position: relative; }
-.floating-heart { position: absolute; right: -8px; bottom: -8px; background: var(--color-surface); border: 1px solid var(--color-line); border-radius: var(--radius-md); width: 36px; height: 36px; display: grid; place-items: center; color: var(--color-danger); box-shadow: var(--shadow-sm); transform: rotate(8deg); }
+.welcome-art { margin: 0 auto 32px; width: 80px; height: 80px; }
+.welcome-art img { width: 100%; height: 100%; display: block; }
 .welcome h2 { font-size: 24px; letter-spacing: -.5px; }
 .welcome p { margin: 16px auto 0; color: var(--color-subtle); max-width: 360px; line-height: 1.75; }
 .welcome-actions { display: flex; justify-content: center; gap: 12px; margin-top: 32px; }
