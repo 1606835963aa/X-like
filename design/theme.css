@@ -1,0 +1,31 @@
+:root {
+  color-scheme: light;
+  --color-soft-surface: color-mix(in srgb, var(--color-neutral-100) 78%, var(--color-neutral-200));
+  --color-line: color-mix(in srgb, var(--color-neutral-200) 60%, var(--color-white));
+  --color-sidebar: color-mix(in srgb, var(--color-soft-surface) 88%, transparent);
+  --color-glass: color-mix(in srgb, var(--color-surface) 88%, transparent);
+  --color-selection: color-mix(in srgb, var(--color-primary-500) 10%, var(--color-surface));
+  --color-scrim: rgb(0 0 0 / 0.22);
+  --color-icon: var(--color-primary-500);
+}
+:root[data-theme=dark] {
+  color-scheme: dark;
+  --color-canvas: var(--color-neutral-950);
+  --color-surface: var(--color-neutral-900);
+  --color-soft-surface: color-mix(in srgb, var(--color-neutral-950) 75%, var(--color-neutral-800));
+  --color-text: var(--color-neutral-100);
+  --color-muted: var(--color-neutral-300);
+  --color-subtle: var(--color-neutral-300);
+  --color-border: var(--color-neutral-700);
+  --color-line: color-mix(in srgb, var(--color-neutral-700) 65%, transparent);
+  --color-sidebar: color-mix(in srgb, var(--color-soft-surface) 90%, transparent);
+  --color-glass: color-mix(in srgb, var(--color-canvas) 88%, transparent);
+  --color-selection: color-mix(in srgb, var(--color-primary-500) 18%, var(--color-surface));
+  --color-accent-text: var(--color-primary-300);
+  --color-icon: var(--color-primary-400);
+  --color-danger: var(--color-danger-300);
+  --color-danger-soft: color-mix(in srgb, var(--color-danger-900) 24%, var(--color-surface));
+  --color-scrim: rgb(0 0 0 / 0.5);
+  --shadow-sm: 0 2px 8px rgb(0 0 0 / 0.12);
+  --shadow-md: 0 4px 16px rgb(0 0 0 / 0.2);
+}

@@ -1,0 +1,7 @@
+*
+!Dockerfile
+!dist/
+!dist/server/
+!dist/server/**
+!dist/ui/
+!dist/ui/**
