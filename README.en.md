@@ -30,6 +30,7 @@ Remote storage is optional. If you configure it, you can use a library hosted on
 
 - **Incremental sync.** Sync new bookmarks, likes or both. Reading stops when a full page is already in the library.
 - **Find videos by author.** Author cards show post and video counts. Author and tag directories use a responsive grid with continuous browsing and full-directory search.
+- **Rediscover saved posts.** Choose random order from the sort menu, with search and filters still applied. The order stays consistent across pages; use reshuffle to start a new round.
 - **Save videos when you choose.** Images and unsaved videos load directly from X on the viewing device. The desktop app can explicitly save selected videos to the current library.
 - **Bring existing data.** Import Shizang JSON backups, X `like.js` files, tweet JSON and CSV files containing post IDs or original links.
 

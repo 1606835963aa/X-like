@@ -42,6 +42,7 @@ export class Store {
       CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY, value TEXT NOT NULL);`);
     this.db.function('tag_key', { deterministic: true }, value => tagKey(value));
     this.db.function('author_key', { deterministic: true }, (handle, name) => authorId(handle, name));
+    this.db.function('shuffle_key', { deterministic: true }, (id, seed) => createHash('sha256').update(String(seed)).update('\0').update(String(id)).digest('hex'));
     if (Number(this.db.prepare('PRAGMA user_version').get()!.user_version) < 2) {
       this.db.exec('BEGIN IMMEDIATE');
       try {
@@ -172,7 +173,9 @@ export class Store {
     const limit = Math.min(100, Math.max(1, Number(q.limit) || 48));
     const page = Math.max(1, Number(q.page) || 1);
     const order = ({ saved: 'p.first_seen_at DESC', newest: 'p.published_at DESC', oldest: 'p.published_at ASC', author: 'p.author ASC', likes: "json_extract(p.metrics,'$.likes') DESC" } as Record<string,string>)[q.sort ?? 'saved'] ?? 'p.first_seen_at DESC';
-    const rows = this.db.prepare(`SELECT p.* FROM posts p WHERE ${clause} ORDER BY p.pinned DESC,${order},p.id DESC LIMIT ? OFFSET ?`).all(...values, limit, (page - 1) * limit);
+    const ordering = q.sort === 'random' ? 'shuffle_key(p.id,?),p.id DESC' : `p.pinned DESC,${order},p.id DESC`;
+    if (q.sort === 'random') values.push(clean(q.seed, 128) || 'shizang');
+    const rows = this.db.prepare(`SELECT p.* FROM posts p WHERE ${clause} ORDER BY ${ordering} LIMIT ? OFFSET ?`).all(...values, limit, (page - 1) * limit);
     return { items: rows.map(r => this.row(r)), total, page, pages: Math.ceil(total / limit) };
   }
   edit(ids: string[], change: any) {

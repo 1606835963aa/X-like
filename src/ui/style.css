@@ -145,6 +145,7 @@ select { cursor: pointer; }
 .result-count { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; color: var(--color-subtle); font-size: 12px; }
 .count-dot { display: none; }
 .result-actions { display: flex; align-items: center; gap: 16px; }
+.shuffle-button { min-height: var(--space-32); flex-shrink: 0; }
 .sort-select { font-size: 12px; border: 0; background: none; min-height: 32px; padding: 0 16px 0 4px; color: var(--color-muted); max-width: 112px; }
 .chip { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--color-accent-text); padding: 3px 8px; background: var(--color-selection); border-radius: var(--radius-pill); }
 /* §3.6、§4.3：卡片分组间距大于组内间距，正文以短段落呈现。 */
@@ -312,6 +313,8 @@ button.post-tag:hover { background: var(--color-soft-surface); }
   .result-bar { gap: 8px; margin: 20px 0 16px; }
   .result-actions { gap: 12px; }
   .result-actions .export-dropdown { display: none; }
+  .shuffle-button { width: var(--space-32); justify-content: center; }
+  .shuffle-button span { display: none; }
   .sort-select { max-width: 104px; }
   .result-count { gap: 4px; min-width: 72px; }
   .post-grid { grid-template-columns: 1fr; gap: 20px; }

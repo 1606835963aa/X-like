@@ -13,7 +13,7 @@ export type Post = PostInput & {
 };
 export type Query = {
   q?: string; source?: string; media?: string; tag?: string; folder?: string;
-  from?: string; to?: string; dateField?: string; author?: string; authorId?: string; sort?: string;
+  from?: string; to?: string; dateField?: string; author?: string; authorId?: string; sort?: string; seed?: string;
   read?: string; pinned?: string; archived?: string; account?: string; page?: string; limit?: string;
 };
 export type Connection = { url: string; token: string; name?: string; local?:boolean };
