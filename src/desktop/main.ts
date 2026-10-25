@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { existsSync, mkdirSync, readFileSync, writeFileSync, unlinkSync } from 'node:fs';
 import { startService } from '../server/service';
 import { Collector } from './collector';
+import { loadPreferences, validPreference } from './preferences';
 import type { Connection } from '../shared/types';
 
 if(process.env.SHIZANG_USER_DATA)app.setPath('userData',process.env.SHIZANG_USER_DATA);
@@ -35,11 +36,12 @@ void app.whenReady().then(async()=>{
     connection=setup;writeFileSync(connectionFile,safeStorage.encryptString(JSON.stringify(setup)),{mode:0o600});unlinkSync(process.env.SHIZANG_CONNECTION_FILE);
   }
   collector=new Collector(s=>{main?.webContents.send('sync',s);});
-  const preferencesFile=join(app.getPath('userData'),'preferences.json');let preferences:Record<string,string>={};
-  const allowedPreferences:Record<string,string[]>={theme:['light','dark'],layout:['grid','list'],autoSync:['true','false']};
-  try{const raw=JSON.parse(readFileSync(preferencesFile,'utf8'));for(const key of Object.keys(allowedPreferences))if(allowedPreferences[key].includes(raw[key]))preferences[key]=raw[key];}catch{}
+  const preferencesFile=join(app.getPath('userData'),'preferences.json');let rawPreferences:unknown;
+  try{rawPreferences=JSON.parse(readFileSync(preferencesFile,'utf8'));}catch{}
+  const preferences=loadPreferences(rawPreferences);
+  writeFileSync(preferencesFile,JSON.stringify(preferences),{mode:0o600});
   ipcMain.on('preferences:get',event=>{event.returnValue={...preferences};});
-  ipcMain.handle('preferences:save',(_,key:string,value:string)=>{if(!allowedPreferences[key]?.includes(value))throw new Error('设置值无效');if(preferences[key]===value)return;preferences[key]=value;writeFileSync(preferencesFile,JSON.stringify(preferences),{mode:0o600});});
+  ipcMain.handle('preferences:save',(_,key:string,value:string)=>{if(!validPreference(key,value))throw new Error('设置值无效');if(preferences[key]===value)return;preferences[key]=value;writeFileSync(preferencesFile,JSON.stringify(preferences),{mode:0o600});});
   ipcMain.handle('connection:get',()=>connection);
   ipcMain.handle('connection:save',(_,c:Connection|null)=>{
     connection=c?validConnection(c):localConnection;
@@ -48,7 +50,13 @@ void app.whenReady().then(async()=>{
   });
   ipcMain.handle('x:login',()=>collector.open());ipcMain.handle('x:status',()=>collector.status());
   ipcMain.handle('x:logout',()=>collector.logout());ipcMain.handle('x:stop',()=>collector.stop());
-  ipcMain.handle('x:sync',(_,options)=>{if(collector.running)throw new Error('已有同步任务');validConnection(options.connection);void collector.sync(options);});
+  ipcMain.handle('x:sync',(_,options)=>{
+    if(collector.running)throw new Error('已有同步任务');
+    if(options?.mode!=='recent')throw new Error('仅支持同步新增收藏和点赞');
+    if(!Array.isArray(options.sources)||!options.sources.length||options.sources.some((s:unknown)=>s!=='bookmark'&&s!=='like'))throw new Error('请选择收藏或点赞');
+    if(options.automatic&&preferences.autoSync!=='true')throw new Error('打开软件时同步已关闭');
+    validConnection(options.connection);void collector.sync(options);
+  });
   ipcMain.handle('media:save',(_,ids?:string[],originals=false)=>collector.cache(connection,ids,originals));
   ipcMain.handle('external',(_,url:string)=>{if(!/^https?:\/\//.test(url))throw new Error('链接格式不正确');return shell.openExternal(url);});
   ipcMain.handle('file:save',async(_,options:{name:string;data:string;encoding?:'utf8'|'base64'})=>{

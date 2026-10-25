@@ -6,4 +6,5 @@ import '../../design/theme.css';
 import './style.css';
 document.documentElement.dataset.platform=window.shizang?.platform??'mobile';
 for(const [key,value] of Object.entries(window.shizang?.preferences??{}))localStorage.setItem(key,value);
+if(window.shizang)localStorage.setItem('autoSync',window.shizang.preferences.autoSync==='true'?'true':'false');
 createRoot(document.getElementById('root')!).render(<React.StrictMode><App/></React.StrictMode>);

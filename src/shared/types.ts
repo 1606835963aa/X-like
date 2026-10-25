@@ -23,7 +23,7 @@ export type DesktopBridge = {
   preferences:Record<string,string>;savePreference:(key:string,value:string)=>Promise<void>;
   platform: string; connection: () => Promise<Connection>; saveConnection: (c: Connection | null) => Promise<Connection>;
   xStatus: () => Promise<{ connected: boolean; account: Account | null }>; loginX: () => Promise<void>;
-  sync: (options: { connection: Connection; sources: Source[]; mode: 'recent'|'full'; background?:boolean }) => Promise<void>;
+  sync: (options: { connection: Connection; sources: Source[]; mode: 'recent'; background?:boolean; automatic?:boolean }) => Promise<void>;
   stopSync: () => Promise<void>; onSync: (callback: (s: SyncState) => void) => () => void;
   logoutX: () => Promise<void>; openExternal: (url: string) => Promise<void>;
   saveMedia: (ids?:string[],originals?:boolean) => Promise<{saved:number;failed:number;total:number}>;

@@ -62,6 +62,7 @@ select { cursor: pointer; }
 .topbar-title, .topbar-actions { display: flex; align-items: center; gap: 12px; }
 .topbar-title { min-width: 0; color: var(--color-muted); font-size: 12px; }
 .topbar-title button, .topbar-actions { -webkit-app-region: no-drag; }
+.topbar.overlay-open { -webkit-app-region: no-drag; }
 .window-context { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .topbar-actions { gap: 4px; }
 .account-status { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--color-subtle); margin-left: 12px; white-space: nowrap; }
@@ -151,7 +152,7 @@ select { cursor: pointer; }
 .error-strip { background: var(--color-danger-soft); color: var(--color-danger); }
 .toast { position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; padding: 12px 20px; background: var(--color-surface); color: var(--color-text); border: 1px solid var(--color-line); border-radius: var(--radius-pill); box-shadow: var(--shadow-lg); z-index: 100; max-width: calc(100vw - 32px); font-size: 12px; }
 /* §6.2、§6.3：弹窗和详情使用不同层级的阴影。 */
-.modal-scrim, .detail-scrim, .mobile-scrim { position: fixed; inset: 0; background: var(--color-scrim); z-index: 50; display: flex; align-items: center; justify-content: center; padding: 24px; backdrop-filter: blur(4px); }
+.modal-scrim, .detail-scrim, .mobile-scrim { position: fixed; inset: 0; background: var(--color-scrim); z-index: 50; display: flex; align-items: center; justify-content: center; padding: 24px; backdrop-filter: blur(4px); -webkit-app-region: no-drag; }
 .modal { background: var(--color-surface); border-radius: var(--radius-xl); width: 100%; max-width: 480px; box-shadow: var(--shadow-2xl); border: 1px solid var(--color-line); max-height: calc(100dvh - 48px); overflow: auto; }
 .modal>header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 32px 32px 0; }
 .modal>header p { color: var(--color-subtle); margin-top: 8px; font-size: 12px; max-width: 32em; line-height: 1.75; }
@@ -191,6 +192,7 @@ select { cursor: pointer; }
 .detail-media { margin-top: 24px; background: var(--color-soft-surface); border-radius: var(--radius-lg); overflow: hidden; }
 .detail-media img, .detail-media video { display: block; width: 100%; max-height: 640px; object-fit: contain; }
 .detail-media video { min-height: 192px; }
+.video-error { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px; color: var(--color-muted); font-size: 14px; }
 .media-save-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 16px; color: var(--color-subtle); font-size: 12px; }
 .detail-meta { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; margin-top: 24px; color: var(--color-subtle); font-size: 12px; }
 .detail-meta span { display: flex; gap: 4px; align-items: center; }
