@@ -3,7 +3,7 @@ import { appendFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseTimeline } from '../shared/x-parser';
 import type { Account, Connection, Source, SyncState } from '../shared/types';
-import { saveMedia } from './media-cache';
+import { saveVideos } from './media-cache';
 import { blockedXPage, checkXStatus, readXResponse, XSyncBlocked } from './sync-policy';
 import { syncTimeline } from './sync-timeline';
 import { SyncCooldown } from './sync-cooldown';
@@ -84,12 +84,12 @@ export class Collector {
   }
   async logout(){if(this.running)throw new Error('请先停止同步');this.window?.close();await this.session.clearStorageData();this.account=null;}
   stop(){this.stopped=true;for(const pending of this.waiting.values())pending.reject(new Error('同步已停止'));}
-  async cache(connection:Connection,ids?:string[],originals=false){
+  async cacheVideos(connection:Connection,ids:string[]){
     if(this.running)throw new Error('请等待当前同步结束');this.running=true;this.stopped=false;
     try{
-      this.notify({running:true,state:'running',count:0,message:originals?'正在保存原始媒体':'正在保存预览图'});
-      const result=await saveMedia(connection,{ids,originals,stopped:()=>this.stopped,progress:(saved,total,failed)=>this.notify({running:true,state:'running',count:saved,message:`正在保存${originals?'原始媒体':'预览图'} ${saved+failed} / ${total}`})});
-      this.notify({running:false,state:this.stopped?'stopped':'complete',count:result.saved,message:this.stopped?'已停止保存媒体':`已保存 ${result.saved} 个媒体文件${result.failed?`，${result.failed} 个暂未保存，可重新尝试`:''}`});return result;
+      this.notify({running:true,state:'running',count:0,message:'正在保存视频'});
+      const result=await saveVideos(connection,{ids,stopped:()=>this.stopped,progress:(saved,total,failed)=>this.notify({running:true,state:'running',count:saved,message:`正在保存视频 ${saved+failed} / ${total}`})});
+      this.notify({running:false,state:this.stopped?'stopped':'complete',count:result.saved,message:this.stopped?'已停止保存视频':`已保存 ${result.saved} 个视频${result.failed?`，${result.failed} 个暂未保存，可重新尝试`:''}`});return result;
     }catch(e){this.notify({running:false,state:'error',count:0,message:e instanceof Error?e.message:'媒体保存失败'});throw e;}
     finally{this.running=false;}
   }
@@ -117,7 +117,6 @@ export class Collector {
   }
   async sync(options:{connection:Connection;sources:Source[];mode:'recent';background?:boolean}){
     if(this.running)throw new Error('已有同步任务');this.running=true;this.stopped=false;this.failure=null;this.collecting=true;let total=0;
-    const newIds=new Set<string>();
     const api=async(path:string,body?:any)=>{
       const response=await fetch(options.connection.url+path,{method:body?'POST':'GET',headers:{Authorization:'Bearer '+options.connection.token,'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined,signal:AbortSignal.timeout(30000)});
       const json=await response.json();if(!response.ok)throw new Error(json.error??'资料库连接失败');return json;
@@ -135,16 +134,14 @@ export class Collector {
         const job=await api('/api/jobs',{account:this.account,source,mode:'recent'});let cursor:string|null=null;
         try{
           const result=await syncTimeline({first:first.json,known:async ids=>(await api('/api/known',{ids,accountId:this.account!.id,source})).ids,
-            save:async(posts,next)=>{await api(`/api/jobs/${job.id}/batch`,{posts,cursor:next??''});cursor=next;posts.forEach(p=>newIds.add(p.id));},
+            save:async(posts,next)=>{await api(`/api/jobs/${job.id}/batch`,{posts,cursor:next??''});cursor=next;},
             next:next=>this.replay(first.template,next),pause:async()=>{for(let i=0;i<6&&!this.stopped;i++){this.check();await delay(500);}},
             stopped:()=>this.stopped,check:()=>this.check(),progress:added=>{total+=added;this.notify({running:true,state:'running',source,count:total,message:`已收录 ${total} 条新增资料`,jobId:job.id});}});
           await api(`/api/jobs/${job.id}/finish`,{state:this.stopped?'stopped':'complete',verifiedEnd:result.verifiedEnd,cursor:result.cursor,message:this.stopped?'同步已停止，已收录资料保留':'新增资料已同步'});
         }catch(e){await api(`/api/jobs/${job.id}/finish`,{state:this.stopped?'stopped':'error',verifiedEnd:false,cursor,message:e instanceof Error?e.message:'同步失败'}).catch(()=>{});throw e;}
       }
       this.collecting=false;this.window?.destroy();
-      let mediaSaved=0,mediaFailed=0;
-      if(!this.stopped&&newIds.size){const media=await saveMedia(options.connection,{ids:[...newIds],stopped:()=>this.stopped,progress:(saved,planned,failed)=>this.notify({running:true,state:'running',count:total,message:`资料已收录，正在保存新增预览图 ${saved+failed} / ${planned}`})});mediaSaved=media.saved;mediaFailed=media.failed;}
-      this.notify({running:false,state:this.stopped?'stopped':'complete',count:total,message:this.stopped?'已停止，已收录资料保留':`同步完成，收录 ${total} 条新增资料${mediaSaved?`，保存 ${mediaSaved} 个预览文件`:''}${mediaFailed?`，${mediaFailed} 个预览文件暂未保存`:''}`});
+      this.notify({running:false,state:this.stopped?'stopped':'complete',count:total,message:this.stopped?'已停止，已收录资料保留':`同步完成，收录 ${total} 条新增资料`});
     }catch(e){
       if(e instanceof XSyncBlocked&&e.reason==='rate-limit'&&e.retryAt&&this.account){try{this.cooldown.record(this.account.id,e.retryAt);}catch{}}
       this.notify({running:false,state:this.stopped?'stopped':'error',count:total,message:e instanceof Error?e.message:'同步失败'});

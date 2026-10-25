@@ -1,6 +1,6 @@
 import { app } from 'electron';
 import assert from 'node:assert/strict';
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { Collector } from '../src/desktop/collector';
 import { readXResponse } from '../src/desktop/sync-policy';
@@ -65,6 +65,15 @@ void app.whenReady().then(async () => {
       assert.equal(reads, 0);
       console.log('PASS 历史读取请求：在访问 X 前拒绝');
     }
-    console.log('6 项采集器场景检查通过；仅使用模拟 X 响应和本机测试资料库。');
+    {
+      const collector=new Collector(()=>{}),account={id:'300',handle:'test',name:'测试'},originalFetch=globalThis.fetch;const mediaCalls:string[]=[];
+      collector.status=async()=>{collector.account=account;return{connected:true,account};};
+      (collector as any).first=async()=>({template:{},json:page('3000')});
+      globalThis.fetch=async(input,init)=>{const url=String(input instanceof Request?input.url:input);if(url.includes('/media')||url.includes('twimg.com'))mediaCalls.push(url);return originalFetch(input,init);};
+      try{await collector.sync({connection,sources:['bookmark'],mode:'recent'});assert.ok(service.store.getPost('3000'));assert.deepEqual(mediaCalls,[]);assert.deepEqual(readdirSync(join(work,'library/media')),[]);}
+      finally{globalThis.fetch=originalFetch;}
+      console.log('PASS 新增资料同步：只写清单，不请求或上传预览图、头像和视频');
+    }
+    console.log('7 项采集器场景检查通过；仅使用模拟 X 响应和本机测试资料库。');
   } finally { await service.close(); }
 }).catch(error => { console.error(error); exitCode = 1; }).finally(() => app.exit(exitCode));

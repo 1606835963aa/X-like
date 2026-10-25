@@ -3,6 +3,7 @@ import { Preferences } from '@capacitor/preferences';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
 import type { Connection } from '../shared/types';
+import { xMediaUrl } from '../shared/media';
 let current:Connection|null=null;
 export function setNativeTheme(theme:string){if(Capacitor.getPlatform()==='android')void SystemBars.setStyle({style:theme==='dark'?SystemBarsStyle.Dark:SystemBarsStyle.Light}).catch(()=>{});}
 export function savePreference(key:string,value:string){localStorage.setItem(key,value);void window.shizang?.savePreference?.(key,value).catch(()=>{});}
@@ -29,7 +30,7 @@ export async function requestAt(connection:Connection|null,path:string,options:{
   return options.text?r.text():r.json();
 }
 export function api(path:string,options?:{method?:string;body?:any;text?:boolean}){return requestAt(current,path,options);}
-export function mediaUrl(path:string|undefined){return path?current?.url+path:'';}
+export function mediaUrl(path:string|undefined){return path?.startsWith('/api/media/')?(current?current.url+path:''):xMediaUrl(path);}
 export async function openExternal(url:string){if(window.shizang)return window.shizang.openExternal(url);window.open(url,'_blank','noopener,noreferrer');}
 export async function downloadFile(name:string,data:string){
   if(window.shizang)return window.shizang.saveFile({name,data});

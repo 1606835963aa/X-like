@@ -1,11 +1,12 @@
 import http, { type IncomingMessage, type ServerResponse } from 'node:http';
 import { readFileSync, writeFileSync, existsSync, mkdirSync, statSync, createReadStream, createWriteStream, renameSync, unlinkSync, chmodSync } from 'node:fs';
-import { Readable, Transform } from 'node:stream';
+import { Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { resolve, join, extname, basename } from 'node:path';
 import { randomBytes, createHmac, timingSafeEqual, createHash } from 'node:crypto';
 import { Store } from './store';
 import { parseImport } from '../shared/x-parser';
+import { xMediaUrl } from '../shared/media';
 import type { Post, Source } from '../shared/types';
 
 type Options = { dataDir: string; uiDir?: string; host?: string; port?: number; name?: string; pairingKey?: string };
@@ -25,7 +26,7 @@ export async function startService(options: Options) {
   const equal = (a: string,b: string) => { const aa=Buffer.from(a),bb=Buffer.from(b); return aa.length===bb.length && timingSafeEqual(aa,bb); };
   const sign = (path: string, expires: string) => createHmac('sha256',signKey).update(path+'|'+expires).digest('hex').slice(0,32);
   const signed = (path: string) => { const expires=String(Math.floor(Date.now()/1000)+86400); return `${path}?expires=${expires}&key=${sign(path,expires)}`; };
-  const decorate = (p: Post) => ({ ...p, avatarPath: p.avatar ? signed(`/api/media/${p.id}/avatar`) : '', media: p.media.map((m,i)=>({...m,cachedOriginal:!!cached(m.url,mediaDir),cachedPreview:!!cached(m.thumbnail,mediaDir),thumbnailPath:signed(`/api/media/${p.id}/${i}/thumbnail`),filePath:signed(`/api/media/${p.id}/${i}/file`)})) });
+  const decorate = (p: Post) => ({ ...p, avatarPath: xMediaUrl(p.avatar), media: p.media.map((m,i)=>({...m,cachedOriginal:!!cached(m.url,mediaDir),cachedPreview:!!cached(m.thumbnail,mediaDir),thumbnailPath:xMediaUrl(m.thumbnail || (m.type==='photo'?m.url:'')),filePath:m.type==='photo'?xMediaUrl(m.url):signed(`/api/media/${p.id}/${i}/file`)})) });
   function send(res: ServerResponse, status: number, value: unknown) { res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'}); res.end(JSON.stringify(value)); }
   async function body(req: IncomingMessage, limit = 50 * 1024 * 1024) { const chunks: Buffer[]=[];let n=0; for await (const c of req){ n+=c.length;if(n>limit)throw new Error('文件超过 50 MB，请分批导入');chunks.push(c); } return JSON.parse(Buffer.concat(chunks).toString('utf8')||'{}'); }
   async function request(req: IncomingMessage,res: ServerResponse) {
@@ -59,7 +60,8 @@ export async function startService(options: Options) {
         const remote = index==='avatar' ? p.avatar : kind==='thumbnail' ? p.media[Number(index)]?.thumbnail : p.media[Number(index)]?.url;
         if(!remote){send(res,404,{error:'媒体不存在'});return;}
         const alternative=index!=='avatar'&&p.media[Number(index)]?(kind==='thumbnail'?p.media[Number(index)].url:p.media[Number(index)].type==='photo'?p.media[Number(index)].thumbnail:''):'';
-        const file=cached(remote,mediaDir)||cached(alternative??'',mediaDir)||await download(remote,mediaDir);
+        const file=cached(remote,mediaDir)||cached(alternative??'',mediaDir);
+        if(!file){send(res,404,{error:'这个媒体尚未保存到资料库'});return;}
         const size=statSync(file.path).size;const range=req.headers.range;
         if(range && /^bytes=\d*-\d*$/.test(range)){
           const [,startText,endText]=/bytes=(\d*)-(\d*)/.exec(range)!;
@@ -75,24 +77,27 @@ export async function startService(options: Options) {
         if(!device){send(res,401,{error:'请重新连接资料库'});return;}
         const q=Object.fromEntries(url.searchParams);
         if(path==='/api/media-cache/plan'&&req.method==='POST'){
-          const b=await body(req,100000);const ids=Array.isArray(b.ids)?new Set(b.ids.slice(0,1000).map(String)):null;
+          const b=await body(req,100000);
+          if(b.originals!==true||!Array.isArray(b.ids)||!b.ids.length||b.ids.length>1000||b.ids.some((id:unknown)=>typeof id!=='string'||!/^\d{1,25}$/.test(id)))throw new Error('请选择需要手动保存的视频');
+          const ids=new Set<string>(b.ids);
           const assets=new Map<string,{id:string;index:string;kind:string;url:string}>();
           for(const row of store.db.prepare('SELECT id,media,avatar FROM posts').all() as any[]){
-            if(ids&&!ids.has(row.id))continue;
+            if(!ids.has(row.id))continue;
             const add=(remote:string,index:string,kind:string)=>{if(!remote||cached(remote,mediaDir))return;try{safeRemote(remote);assets.set(remote,{id:row.id,index,kind,url:remote});}catch{}};
             const media=JSON.parse(row.media);
-            for(let i=0;i<media.length;i++)add(b.originals?media[i].url:media[i].thumbnail||media[i].url,String(i),b.originals?'file':'thumbnail');
-            if(!b.originals)add(row.avatar,'avatar','file');
+            for(let i=0;i<media.length;i++)if(media[i].type==='video'||media[i].type==='gif')add(media[i].url,String(i),'file');
           }
           send(res,200,{assets:[...assets.values()]});return;
         }
         const upload=/^\/api\/media-cache\/(\d+)\/(\d+|avatar)\/(thumbnail|file)$/.exec(path);
         if(upload&&req.method==='POST'){
           const p=store.getPost(upload[1]);if(!p)throw new Error('资料不存在');
-          const remote=upload[2]==='avatar'?p.avatar:upload[3]==='thumbnail'?p.media[Number(upload[2])]?.thumbnail||p.media[Number(upload[2])]?.url:p.media[Number(upload[2])]?.url;
+          const media=p.media[Number(upload[2])];
+          if(upload[3]!=='file'||!media||!['video','gif'].includes(media.type))throw new Error('仅支持手动保存视频');
+          const remote=media.url;
           if(!remote)throw new Error('媒体不存在');safeRemote(remote);
           const type=String(req.headers['content-type']??'').split(';')[0];
-          if(!/^(image\/(jpeg|png|gif|webp|avif)|video\/(mp4|webm))$/.test(type))throw new Error('媒体文件格式不受支持');
+          if(!/^video\/(mp4|webm)$/.test(type))throw new Error('视频文件格式不受支持');
           const target=mediaFile(remote,mediaDir),temporary=target+'.'+randomBytes(6).toString('hex')+'.part';let size=0;
           try{await pipeline(req,new Transform({transform(chunk,_encoding,callback){size+=chunk.length;callback(size>250*1024*1024?new Error('单个媒体超过 250 MB'):null,chunk);}}),createWriteStream(temporary,{mode:0o600}));
             renameSync(temporary,target);writeFileSync(target+'.json',JSON.stringify({type,url:remote}),{mode:0o600});send(res,200,{ok:true,size});
@@ -115,7 +120,7 @@ export async function startService(options: Options) {
           const items:Post[]=[];let page=1;while(true){const r=store.list({...q,page:String(page++),limit:'100'});items.push(...r.items);if(items.length>=r.total)break;}
           if(q.format==='csv'){
             const cell=(s:unknown)=>{const value=String(s??'');const text=/^[=+\-@\t\r']/.test(value)?"'"+value:value;return '"'+text.replace(/"/g,'""')+'"';};
-            const csv='\uFEFF'+[['推文编号','作者','用户名','发布时间','首次收录时间','正文','收藏','点赞','标签','文件夹','备注','已读','原文链接'],...items.map(p=>[p.id,p.authorName,p.author,p.publishedAt,p.firstSeenAt,p.text,p.sources.includes('bookmark')?'是':'否',p.sources.includes('like')?'是':'否',p.tags.join('、'),p.folder,p.note,p.read?'是':'否',p.url])].map(r=>r.map(cell).join(',')).join('\r\n');
+            const csv='\uFEFF'+[['推文编号','作者','用户名','发布时间','首次收录时间','正文','收藏','点赞','标签','帖子标签','文件夹','备注','已读','原文链接'],...items.map(p=>[p.id,p.authorName,p.author,p.publishedAt,p.firstSeenAt,p.text,p.sources.includes('bookmark')?'是':'否',p.sources.includes('like')?'是':'否',p.tags.join('、'),p.hashtags.join('、'),p.folder,p.note,p.read?'是':'否',p.url])].map(r=>r.map(cell).join(',')).join('\r\n');
             res.writeHead(200,{'Content-Type':'text/csv; charset=utf-8','Content-Disposition':'attachment; filename="shizang.csv"'});res.end(csv);return;
           }
           send(res,200,{format:'shizang',version:1,exportedAt:new Date().toISOString(),posts:items});return;
@@ -161,30 +166,6 @@ export async function startService(options: Options) {
   return { server,store,port:address.port,pairingKey,createDevice(name:string){const token=randomBytes(32).toString('base64url');store.addDevice(name,token);return token;},close:()=>new Promise<void>((resolve)=>server.close(()=>{store.close();resolve();})) };
 }
 
-const downloads=new Map<string,Promise<{path:string;type:string}>>();
 const mediaFile=(url:string,dir:string)=>join(dir,createHash('sha256').update(url).digest('hex'));
 function safeRemote(raw:string){const u=new URL(raw);if(u.protocol!=='https:'||!(u.hostname==='twimg.com'||u.hostname.endsWith('.twimg.com'))||u.username||u.password)throw new Error('媒体地址不受支持');return u;}
 function cached(url:string,dir:string):{path:string;type:string}|null{if(!url)return null;const file=mediaFile(url,dir);if(!existsSync(file)||!existsSync(file+'.json'))return null;try{return{path:file,type:JSON.parse(readFileSync(file+'.json','utf8')).type};}catch{return null;}}
-async function download(url:string,dir:string):Promise<{path:string;type:string}> {
-  const safe=safeRemote;
-  safe(url);const hash=createHash('sha256').update(url).digest('hex');const file=join(dir,hash);const meta=file+'.json';
-  if(existsSync(file)&&existsSync(meta))return{path:file,type:JSON.parse(readFileSync(meta,'utf8')).type};
-  const key=dir+'|'+hash;if(downloads.has(key))return downloads.get(key)!;
-  const promise=(async()=>{
-    let remote=url,response:Response|undefined;
-    for(let attempt=0;attempt<4;attempt++){
-      safe(remote);response=await fetch(remote,{redirect:'manual',signal:AbortSignal.timeout(45000)});
-      if(response.status>=300&&response.status<400&&response.headers.get('location')){remote=new URL(response.headers.get('location')!,remote).href;continue;}break;
-    }
-    if(!response?.ok)throw new Error('X 暂时无法提供这个媒体文件');
-    const type=(response.headers.get('content-type')??'application/octet-stream').split(';')[0];
-    if(!/^(image|video)\//.test(type))throw new Error('媒体文件格式不受支持');
-    const max=250*1024*1024;let size=0;
-    if(Number(response.headers.get('content-length'))>max)throw new Error('单个媒体超过 250 MB');
-    const temporary=file+'.part';
-    try{
-      await pipeline(Readable.fromWeb(response.body as any),new Transform({transform(chunk,_encoding,callback){size+=chunk.length;callback(size>max?new Error('单个媒体超过 250 MB'):null,chunk);}}),createWriteStream(temporary,{mode:0o600}));
-      renameSync(temporary,file);writeFileSync(meta,JSON.stringify({type,url}),{mode:0o600});return{path:file,type};
-    }catch(e){try{unlinkSync(temporary);}catch{}throw e;}
-  })();downloads.set(key,promise);try{return await promise;}finally{downloads.delete(key);}
-}

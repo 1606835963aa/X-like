@@ -61,17 +61,18 @@ test('中文 CSV 可以重新导入，文件导入资料和双来源在备份恢
   const three=new Store(':memory:');three.importBackup({format:'shizang',version:1,posts:[one.getPost('1001')]});assert.deepEqual(three.getPost('1001')!.sources.sort(),['bookmark','like']);
   one.close();two.close();three.close();
 });
-test('电脑保存的预览图能离线读取，原图未保存时使用本地预览，视频支持分段读取',async()=>{
+test('手动选择的视频保存后支持分段读取，图片和默认媒体保存任务被拒绝',async()=>{
   const dir=mkdtempSync(resolve('tmp/media-test-'));const s=await startService({dataDir:dir});const base=`http://127.0.0.1:${s.port}`;const token=s.createDevice('媒体测试');const headers={Authorization:'Bearer '+token,'Content-Type':'application/json'};
   const request=async(path:string,body:any)=>{const r=await fetch(base+path,{method:'POST',headers,body:JSON.stringify(body)});assert.equal(r.status,200);return r.json();};
   try{
     s.store.ingest([{...post('1001'),media:[{type:'photo',url:'https://pbs.twimg.com/test-original.png',thumbnail:'https://pbs.twimg.com/test-preview.png'},{type:'video',url:'https://video.twimg.com/test.mp4',thumbnail:'https://pbs.twimg.com/test-poster.png'}]}],'42','bookmark');
-    const plan=await request('/api/media-cache/plan',{});assert.equal(plan.assets.length,2);
+    const plan=await request('/api/media-cache/plan',{ids:['1001'],originals:true});assert.equal(plan.assets.length,1);assert.equal(plan.assets[0].kind,'file');
+    assert.equal((await fetch(base+'/api/media-cache/plan',{method:'POST',headers,body:'{}'})).status,400);
     const bytes=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a92kAAAAASUVORK5CYII=','base64');
-    const upload=await fetch(base+'/api/media-cache/1001/0/thumbnail',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'image/png'},body:bytes});assert.equal(upload.status,200);
+    const upload=await fetch(base+'/api/media-cache/1001/0/thumbnail',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'image/png'},body:bytes});assert.equal(upload.status,400);
     const video=Buffer.from('test-video-range');assert.equal((await fetch(base+'/api/media-cache/1001/1/file',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'video/mp4'},body:video})).status,200);
-    const result=await (await fetch(base+'/api/posts/1001',{headers})).json();assert.equal(result.media[0].cachedOriginal,false);assert.equal(result.media[0].cachedPreview,true);
-    const picture=await fetch(base+result.media[0].filePath);assert.equal(picture.status,200);assert.deepEqual(Buffer.from(await picture.arrayBuffer()),bytes);
+    const result=await (await fetch(base+'/api/posts/1001',{headers})).json();assert.equal(result.media[0].cachedOriginal,false);assert.equal(result.media[0].cachedPreview,false);
+    assert.equal(result.media[0].filePath,'https://pbs.twimg.com/test-original.png');
     const range=await fetch(base+result.media[1].filePath,{headers:{Range:'bytes=5-9'}});assert.equal(range.status,206);assert.equal(await range.text(),'video');
     assert.equal((await fetch(base+'/api/media-cache/1001/0/file',{method:'POST',headers:{'Content-Type':'image/png'},body:bytes})).status,401);
   }finally{await s.close();rmSync(dir,{recursive:true,force:true});}

@@ -1,4 +1,5 @@
 import type { Media, PostInput } from './types';
+import { extractHashtags } from './hashtags';
 
 export function tweetToPost(raw: any): PostInput | null {
   const t = raw?.tweet ?? raw;
@@ -16,7 +17,7 @@ export function tweetToPost(raw: any): PostInput | null {
   });
   const quoteRaw = t.quoted_status_result?.result;
   const q = quoteRaw && !quoteRaw.tweet?.quoted_status_result ? tweetToPostWithoutQuote(quoteRaw) : null;
-  return { id, text: unescapeText(text), author, authorName: user.core?.name ?? u.name ?? author,
+  return { id, text: unescapeText(text), hashtags: extractHashtags(unescapeText(text), [...(l.entities?.hashtags ?? []), ...(t.note_tweet?.note_tweet_results?.result?.entity_set?.hashtags ?? [])]), author, authorName: user.core?.name ?? u.name ?? author,
     avatar: user.avatar?.image_url ?? u.profile_image_url_https ?? '',
     publishedAt: Number.isFinite(Date.parse(l.created_at)) ? new Date(l.created_at).toISOString() : null,
     url: `https://x.com/${author || 'i'}/status/${id}`, media,
@@ -83,7 +84,7 @@ export function parseImport(content: string, filename = ''): PostInput[] | { bac
       publishedAt:Number.isFinite(Date.parse(r['发布时间']))?new Date(r['发布时间']).toISOString():null,
       firstSeenAt:r['首次收录时间'],url:r['原文链接']??`https://x.com/i/status/${r['推文编号']}`,media:[],
       sources:[...(r['收藏']==='是'?['bookmark']:[]),...(r['点赞']==='是'?['like']:[])],
-      tags:(r['标签']??'').split('、').filter(Boolean),folder:r['文件夹']??'',note:r['备注']??'',read:r['已读']==='是',pinned:false,archived:false
+      tags:(r['标签']??'').split('、').filter(Boolean),hashtags:extractHashtags(r['正文']??'',(r['帖子标签']??'').split('、')),folder:r['文件夹']??'',note:r['备注']??'',read:r['已读']==='是',pinned:false,archived:false
     }));
     if(!posts.length)throw new Error('CSV 中没有可识别的推文编号');
     return {backup:{format:'shizang',version:1,posts,sourceEdges:posts.flatMap((p:any)=>p.sources.map((kind:string)=>({post_id:p.id,account_id:'import',kind,active:1})))}};
@@ -100,7 +101,8 @@ export function parseImport(content: string, filename = ''): PostInput[] | { bac
     let media: Media[]=[];
     if(Array.isArray(raw.media))media=raw.media.filter((m:any)=>m && typeof m==='object' && m.url).map((m:any)=>({type:m.type==='video'?'video':m.type==='gif'?'gif':'photo',url:m.url,thumbnail:m.thumbnail??m.url}));
     const date=raw.publishedAt??raw.postedAt??raw.created_at??raw.createdAt;
-    posts.set(id,{id,text:String(raw.text??raw.fullText??raw.full_text??''),author,authorName:raw.authorName??raw.name??author,
+    const postText=String(raw.text??raw.fullText??raw.full_text??'');
+    posts.set(id,{id,text:postText,hashtags:extractHashtags(postText,raw.hashtags??raw.entities?.hashtags),author,authorName:raw.authorName??raw.name??author,
       avatar:raw.avatar??'',publishedAt:Number.isFinite(Date.parse(date))?new Date(date).toISOString():null,url:`https://x.com/${author||'i'}/status/${id}`,media});
   }
   if(!posts.size)throw new Error('文件里没有可识别的推文。支持拾藏备份、X 数据存档和推文 JSON / CSV。');

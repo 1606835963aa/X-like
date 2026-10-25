@@ -2,7 +2,9 @@ import { DatabaseSync } from 'node:sqlite';
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { randomUUID, createHash } from 'node:crypto';
-import type { Account, Post, PostInput, Query, Source } from '../shared/types';
+import type { Account, Author, Post, PostInput, Query, Source } from '../shared/types';
+import { extractHashtags, mergeTags, tagKey } from '../shared/hashtags';
+import { authorId } from '../shared/directory';
 
 const now = () => new Date().toISOString();
 const clean = (v: unknown, max = 50000) => typeof v === 'string' ? v.slice(0, max) : '';
@@ -19,7 +21,7 @@ export class Store {
         quote TEXT, metrics TEXT NOT NULL DEFAULT '{}', first_seen_at TEXT NOT NULL, updated_at TEXT NOT NULL,
         note TEXT NOT NULL DEFAULT '', tags TEXT NOT NULL DEFAULT '[]', folder TEXT NOT NULL DEFAULT '',
         is_read INTEGER NOT NULL DEFAULT 0, pinned INTEGER NOT NULL DEFAULT 0, archived INTEGER NOT NULL DEFAULT 0,
-        search_text TEXT NOT NULL DEFAULT ''
+        search_text TEXT NOT NULL DEFAULT '', hashtags TEXT NOT NULL DEFAULT '[]'
       );
       CREATE TABLE IF NOT EXISTS accounts(id TEXT PRIMARY KEY, handle TEXT NOT NULL, name TEXT NOT NULL, avatar TEXT NOT NULL DEFAULT '');
       CREATE TABLE IF NOT EXISTS sources (
@@ -37,8 +39,20 @@ export class Store {
         count INTEGER NOT NULL DEFAULT 0, cursor TEXT, message TEXT NOT NULL DEFAULT ''
       );
       CREATE TABLE IF NOT EXISTS devices(id TEXT PRIMARY KEY, name TEXT NOT NULL, token_hash TEXT UNIQUE NOT NULL, created_at TEXT NOT NULL, last_seen_at TEXT NOT NULL);
-      CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY, value TEXT NOT NULL);
-      PRAGMA user_version=1;`);
+      CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY, value TEXT NOT NULL);`);
+    this.db.function('tag_key', { deterministic: true }, value => tagKey(value));
+    this.db.function('author_key', { deterministic: true }, (handle, name) => authorId(handle, name));
+    if (Number(this.db.prepare('PRAGMA user_version').get()!.user_version) < 2) {
+      this.db.exec('BEGIN IMMEDIATE');
+      try {
+        if (!this.db.prepare('PRAGMA table_info(posts)').all().some(column => column.name === 'hashtags')) this.db.exec("ALTER TABLE posts ADD COLUMN hashtags TEXT NOT NULL DEFAULT '[]'");
+        for (const row of this.db.prepare('SELECT id,text,hashtags FROM posts').all() as {id:string;text:string;hashtags:string}[]) {
+          this.db.prepare('UPDATE posts SET hashtags=? WHERE id=?').run(JSON.stringify(extractHashtags(row.text, JSON.parse(row.hashtags))), row.id);
+          this.updateSearch(row.id);
+        }
+        this.db.exec('PRAGMA user_version=2; COMMIT');
+      } catch (error) { this.db.exec('ROLLBACK'); throw error; }
+    }
     this.db.prepare("UPDATE jobs SET state='interrupted',ended_at=?,message='服务已重新启动，已收录内容保留' WHERE state='running'").run(now());
   }
   close() { this.db.close(); }
@@ -89,6 +103,8 @@ export class Store {
             .run(text || exists.text, author || exists.author, name || exists.author_name, clean(input.avatar, 4000) || exists.avatar, published || exists.published_at, input.url,
               media.length ? JSON.stringify(media) : exists.media, quote || exists.quote, JSON.stringify(input.metrics ?? JSON.parse(exists.metrics)), now(), input.id);
         }
+        const hashtags = extractHashtags(text || exists?.text || '', input.hashtags ?? (text && text !== exists?.text ? [] : JSON.parse(exists?.hashtags ?? '[]')));
+        this.db.prepare('UPDATE posts SET hashtags=? WHERE id=?').run(JSON.stringify(hashtags), input.id);
         this.db.prepare('INSERT INTO sources(post_id,account_id,kind,active,seen_job,updated_at) VALUES (?,?,?,1,?,?) ON CONFLICT(post_id,account_id,kind) DO UPDATE SET active=1,seen_job=excluded.seen_job,updated_at=excluded.updated_at')
           .run(input.id, accountId, source, jobId, now());
         this.updateSearch(input.id);
@@ -101,7 +117,7 @@ export class Store {
   }
   private updateSearch(id: string) {
     const p = this.db.prepare('SELECT * FROM posts WHERE id=?').get(id) as any;
-    this.db.prepare('UPDATE posts SET search_text=? WHERE id=?').run(norm([p.text, p.author, p.author_name, p.note, p.tags, p.folder, p.quote].filter(Boolean).join(' ')), id);
+    this.db.prepare('UPDATE posts SET search_text=? WHERE id=?').run(norm([p.text, p.author, p.author_name, p.note, p.tags, p.hashtags, p.folder, p.quote].filter(Boolean).join(' ')), id);
   }
   finishJob(id: string, state: string, verifiedEnd: boolean, cursor?: string, message = '') {
     const job = this.db.prepare('SELECT * FROM jobs WHERE id=?').get(id) as any;
@@ -122,24 +138,30 @@ export class Store {
     return { id: row.id, text: row.text, author: row.author, authorName: row.author_name, avatar: row.avatar,
       publishedAt: row.published_at, url: row.url, media: JSON.parse(row.media), quote: row.quote ? JSON.parse(row.quote) : undefined,
       metrics: JSON.parse(row.metrics), firstSeenAt: row.first_seen_at, updatedAt: row.updated_at, note: row.note,
-      tags: JSON.parse(row.tags), folder: row.folder, read: !!row.is_read, pinned: !!row.pinned, archived: !!row.archived,
+      tags: JSON.parse(row.tags), hashtags: JSON.parse(row.hashtags), folder: row.folder, read: !!row.is_read, pinned: !!row.pinned, archived: !!row.archived,
       sources: [...new Set(edges.map(e => e.kind))] as Source[], accountIds: [...new Set(edges.map(e => e.account_id))] };
   }
   getPost(id: string) { const row = this.db.prepare('SELECT * FROM posts WHERE id=?').get(id); return row ? this.row(row) : null; }
   list(q: Query) {
     const where: string[] = ['p.archived=?'];
     const values: any[] = [q.archived === 'true' ? 1 : 0];
-    for (const word of norm(clean(q.q, 500)).split(/\s+/).filter(Boolean)) { where.push('instr(p.search_text,?)>0'); values.push(word); }
+    const tagged = "EXISTS(SELECT 1 FROM json_each(p.tags) t WHERE tag_key(t.value)=? UNION ALL SELECT 1 FROM json_each(p.hashtags) h WHERE tag_key(h.value)=?)";
+    for (const word of norm(clean(q.q, 500)).split(/\s+/).filter(Boolean)) {
+      if (word.startsWith('#') && word.length > 1) { where.push(tagged); values.push(tagKey(word), tagKey(word)); }
+      else { where.push('instr(p.search_text,?)>0'); values.push(word); }
+    }
     if (q.source === 'both') where.push("EXISTS(SELECT 1 FROM sources s WHERE s.post_id=p.id AND s.active=1 AND s.kind='bookmark') AND EXISTS(SELECT 1 FROM sources s WHERE s.post_id=p.id AND s.active=1 AND s.kind='like')");
     else if (q.source === 'bookmark' || q.source === 'like') { where.push('EXISTS(SELECT 1 FROM sources s WHERE s.post_id=p.id AND s.active=1 AND s.kind=?)'); values.push(q.source); }
     if (q.account) { where.push('EXISTS(SELECT 1 FROM sources s WHERE s.post_id=p.id AND s.active=1 AND s.account_id=?)'); values.push(q.account); }
     if (q.media && q.media !== 'all') {
       if (q.media === 'text') where.push('json_array_length(p.media)=0');
-      else if (['photo','video','gif'].includes(q.media)) { where.push('EXISTS(SELECT 1 FROM json_each(p.media) m WHERE json_extract(m.value,\'$.type\')=?)'); values.push(q.media); }
+      else if (q.media === 'video') where.push("EXISTS(SELECT 1 FROM json_each(p.media) m WHERE json_extract(m.value,'$.type') IN ('video','gif'))");
+      else if (['photo','gif'].includes(q.media)) { where.push('EXISTS(SELECT 1 FROM json_each(p.media) m WHERE json_extract(m.value,\'$.type\')=?)'); values.push(q.media); }
     }
-    if (q.tag) { where.push('EXISTS(SELECT 1 FROM json_each(p.tags) t WHERE t.value=?)'); values.push(q.tag); }
+    if (q.tag) { where.push(tagged); values.push(tagKey(q.tag), tagKey(q.tag)); }
     if (q.folder) { where.push('p.folder=?'); values.push(q.folder); }
     if (q.author) { where.push("instr(lower(p.author || ' ' || p.author_name),?)>0"); values.push(q.author.toLowerCase()); }
+    if (q.authorId) { where.push('author_key(p.author,p.author_name)=?'); values.push(clean(q.authorId, 1000)); }
     if (q.read === 'true' || q.read === 'false') { where.push('p.is_read=?'); values.push(q.read === 'true' ? 1 : 0); }
     if (q.pinned === 'true') where.push('p.pinned=1');
     const date = q.dateField === 'saved' ? 'p.first_seen_at' : 'p.published_at';
@@ -174,13 +196,33 @@ export class Store {
   }
   stats() {
     const count = (where: string) => Number(this.db.prepare(`SELECT COUNT(*) n FROM posts p WHERE ${where}`).get()!.n);
-    const tags = this.db.prepare("SELECT t.value name,COUNT(*) count FROM posts p,json_each(p.tags) t WHERE p.archived=0 GROUP BY t.value ORDER BY count DESC,t.value").all();
+    const tagCounts = new Map<string, {name:string;count:number}>();
+    for (const row of this.db.prepare('SELECT tags,hashtags FROM posts WHERE archived=0').all() as {tags:string;hashtags:string}[]) {
+      for (const name of mergeTags(JSON.parse(row.tags), JSON.parse(row.hashtags))) {
+        const key = tagKey(name), previous = tagCounts.get(key);
+        if (previous) previous.count++; else tagCounts.set(key, {name,count:1});
+      }
+    }
+    const tags = [...tagCounts.values()].sort((a,b)=>b.count-a.count||a.name.localeCompare(b.name,'zh-CN'));
+    const authorCounts = new Map<string,Author>();
+    const rows = this.db.prepare(`SELECT p.author,p.author_name,p.avatar,p.media,
+      EXISTS(SELECT 1 FROM sources s WHERE s.post_id=p.id AND s.active=1 AND s.kind='bookmark') bookmarked,
+      EXISTS(SELECT 1 FROM sources s WHERE s.post_id=p.id AND s.active=1 AND s.kind='like') liked
+      FROM posts p WHERE p.archived=0 ORDER BY p.updated_at DESC,p.id DESC`).all();
+    for (const row of rows) {
+      const id=authorId(row.author,row.author_name);
+      let author=authorCounts.get(id);
+      if(!author){author={id,handle:String(row.author),name:String(row.author_name||row.author||'未知作者'),avatar:String(row.avatar),count:0,videos:0,bookmarks:0,likes:0};authorCounts.set(id,author);}
+      author.count++;author.bookmarks+=Number(row.bookmarked);author.likes+=Number(row.liked);
+      if(JSON.parse(String(row.media)).some((media:any)=>media.type==='video'||media.type==='gif'))author.videos++;
+    }
+    const authors=[...authorCounts.values()].sort((a,b)=>b.count-a.count||a.name.localeCompare(b.name,'zh-CN'));
     const folders = this.db.prepare("SELECT folder name,COUNT(*) count FROM posts WHERE archived=0 AND folder<>'' GROUP BY folder ORDER BY folder").all();
     return { total: count('p.archived=0'), bookmarks: count("p.archived=0 AND EXISTS(SELECT 1 FROM sources s WHERE s.post_id=p.id AND s.kind='bookmark' AND s.active=1)"),
       likes: count("p.archived=0 AND EXISTS(SELECT 1 FROM sources s WHERE s.post_id=p.id AND s.kind='like' AND s.active=1)"), unread: count('p.archived=0 AND p.is_read=0'), pinned: count('p.archived=0 AND p.pinned=1'), archived: count('p.archived=1'),
       photos: count("p.archived=0 AND EXISTS(SELECT 1 FROM json_each(p.media) m WHERE json_extract(m.value,'$.type')='photo')"),
       videos: count("p.archived=0 AND EXISTS(SELECT 1 FROM json_each(p.media) m WHERE json_extract(m.value,'$.type') IN ('video','gif'))"),
-      tags, folders, accounts: this.db.prepare('SELECT * FROM accounts').all(), lastSync: this.db.prepare('SELECT * FROM jobs ORDER BY started_at DESC LIMIT 1').get() ?? null };
+      tags, authors, folders, accounts: this.db.prepare('SELECT * FROM accounts').all(), lastSync: this.db.prepare('SELECT * FROM jobs ORDER BY started_at DESC LIMIT 1').get() ?? null };
   }
   exportAll() {
     return { format: 'shizang', version: 1, exportedAt: now(), posts: this.db.prepare('SELECT * FROM posts ORDER BY first_seen_at DESC').all().map(r => this.row(r)),

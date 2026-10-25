@@ -57,7 +57,10 @@ void app.whenReady().then(async()=>{
     if(options.automatic&&preferences.autoSync!=='true')throw new Error('打开软件时同步已关闭');
     validConnection(options.connection);void collector.sync(options);
   });
-  ipcMain.handle('media:save',(_,ids?:string[],originals=false)=>collector.cache(connection,ids,originals));
+  ipcMain.handle('videos:save',(_,ids:string[])=>{
+    if(!Array.isArray(ids)||!ids.length||ids.length>1000||ids.some(id=>typeof id!=='string'||!/^\d{1,25}$/.test(id)))throw new Error('请选择需要保存的视频');
+    return collector.cacheVideos(connection,ids);
+  });
   ipcMain.handle('external',(_,url:string)=>{if(!/^https?:\/\//.test(url))throw new Error('链接格式不正确');return shell.openExternal(url);});
   ipcMain.handle('file:save',async(_,options:{name:string;data:string;encoding?:'utf8'|'base64'})=>{
     const result=await dialog.showSaveDialog(main!,{defaultPath:options.name});if(result.canceled||!result.filePath)return false;

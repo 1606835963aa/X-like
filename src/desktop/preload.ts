@@ -7,7 +7,7 @@ const bridge: DesktopBridge = {
   xStatus: () => ipcRenderer.invoke('x:status'), loginX: () => ipcRenderer.invoke('x:login'),
   sync: options => ipcRenderer.invoke('x:sync',options), stopSync: () => ipcRenderer.invoke('x:stop'),
   logoutX: () => ipcRenderer.invoke('x:logout'),
-  saveMedia: (ids,originals) => ipcRenderer.invoke('media:save',ids,originals),
+  saveVideos: ids => ipcRenderer.invoke('videos:save',ids),
   openExternal: url => ipcRenderer.invoke('external',url), saveFile: options => ipcRenderer.invoke('file:save',options),
   onSync: callback => { const handler=(_:unknown,data:any)=>callback(data);ipcRenderer.on('sync',handler);return()=>ipcRenderer.removeListener('sync',handler); }
 };
