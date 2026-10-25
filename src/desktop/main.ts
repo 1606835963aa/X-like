@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, Menu, safeStorage, shell } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, Menu, net, safeStorage, shell } from 'electron';
 import { join } from 'node:path';
 import { existsSync, mkdirSync, readFileSync, writeFileSync, unlinkSync } from 'node:fs';
 import { startService } from '../server/service';
@@ -31,7 +31,7 @@ void app.whenReady().then(async()=>{
   if(existsSync(connectionFile)&&safeStorage.isEncryptionAvailable()){try{const saved=validConnection(JSON.parse(safeStorage.decryptString(readFileSync(connectionFile))));connection=saved.local||(saved.name==='本机资料库'&&new URL(saved.url).hostname==='127.0.0.1')?localConnection:saved;}catch{}}
   if(process.env.SHIZANG_CONNECTION_FILE){
     const setup=validConnection(JSON.parse(readFileSync(process.env.SHIZANG_CONNECTION_FILE,'utf8')));
-    const verified=await fetch(setup.url+'/api/stats',{headers:{Authorization:'Bearer '+setup.token},signal:AbortSignal.timeout(10000)});
+    const verified=await net.fetch(setup.url+'/api/stats',{credentials:'omit',headers:{Authorization:'Bearer '+setup.token},signal:AbortSignal.timeout(10000)});
     if(!verified.ok||!safeStorage.isEncryptionAvailable())throw new Error('资料库连接配置无法保存');
     connection=setup;writeFileSync(connectionFile,safeStorage.encryptString(JSON.stringify(setup)),{mode:0o600});unlinkSync(process.env.SHIZANG_CONNECTION_FILE);
   }

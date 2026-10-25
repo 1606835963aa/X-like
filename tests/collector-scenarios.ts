@@ -1,4 +1,5 @@
-import { app } from 'electron';
+import { app, session } from 'electron';
+import http from 'node:http';
 import assert from 'node:assert/strict';
 import { mkdirSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
@@ -66,14 +67,54 @@ void app.whenReady().then(async () => {
       console.log('PASS 历史读取请求：在访问 X 前拒绝');
     }
     {
-      const collector=new Collector(()=>{}),account={id:'300',handle:'test',name:'测试'},originalFetch=globalThis.fetch;const mediaCalls:string[]=[];
+      const collector=new Collector(()=>{}),account={id:'300',handle:'test',name:'测试'};const mediaCalls:string[]=[];
       collector.status=async()=>{collector.account=account;return{connected:true,account};};
       (collector as any).first=async()=>({template:{},json:page('3000')});
-      globalThis.fetch=async(input,init)=>{const url=String(input instanceof Request?input.url:input);if(url.includes('/media')||url.includes('twimg.com'))mediaCalls.push(url);return originalFetch(input,init);};
+      const observe=(request:http.IncomingMessage)=>{if(request.url?.includes('/media'))mediaCalls.push(request.url);};service.server.on('request',observe);
       try{await collector.sync({connection,sources:['bookmark'],mode:'recent'});assert.ok(service.store.getPost('3000'));assert.deepEqual(mediaCalls,[]);assert.deepEqual(readdirSync(join(work,'library/media')),[]);}
-      finally{globalThis.fetch=originalFetch;}
+      finally{service.server.off('request',observe);}
       console.log('PASS 新增资料同步：只写清单，不请求或上传预览图、头像和视频');
     }
-    console.log('7 项采集器场景检查通过；仅使用模拟 X 响应和本机测试资料库。');
+    {
+      const account={id:'301',handle:'test',name:'测试'},states:SyncState[]=[];let reads=0,requests=0;
+      const collector=new Collector(state=>states.push(state),{fetcher:async()=>{requests++;throw new TypeError('fetch failed',{cause:Object.assign(new Error('unreachable'),{code:'EHOSTUNREACH'})});}});
+      collector.status=async()=>{collector.account=account;return{connected:true,account};};
+      (collector as any).first=async()=>{reads++;throw new Error('资料库不可达时不应访问 X');};
+      await collector.sync({connection,sources:['bookmark','like'],mode:'recent'});
+      assert.equal(reads,0);assert.equal(requests,1);assert.match(states.at(-1)!.message,/资料库.*EHOSTUNREACH/);assert.equal(states.at(-1)!.state,'error');
+      console.log('PASS 资料库连接失败：在访问 X 前停止、不重试、明确提示资料库错误');
+    }
+    {
+      const requests:string[]=[],states:SyncState[]=[];
+      const proxy=http.createServer((request,response)=>{
+        const url=new URL(request.url!);requests.push(url.pathname);
+        assert.equal(url.hostname,'nas.invalid');
+        const forwarded=http.request({host:'127.0.0.1',port:service.port,path:url.pathname+url.search,method:request.method,headers:request.headers},upstream=>{response.writeHead(upstream.statusCode!,upstream.headers);upstream.pipe(response);});
+        forwarded.on('error',()=>{response.writeHead(502);response.end();});request.pipe(forwarded);
+      });
+      await new Promise<void>(resolve=>proxy.listen(0,'127.0.0.1',resolve));
+      const port=(proxy.address() as import('node:net').AddressInfo).port;
+      try{
+        await session.defaultSession.setProxy({mode:'fixed_servers',proxyRules:`127.0.0.1:${port}`});
+        const account={id:'302',handle:'test',name:'测试'},collector=new Collector(state=>states.push(state));
+        collector.status=async()=>{collector.account=account;return{connected:true,account};};
+        (collector as any).first=async()=>({template:{},json:page('3020')});
+        await collector.sync({connection:{...connection,url:'http://nas.invalid:5368'},sources:['bookmark'],mode:'recent'});
+        assert.equal(states.at(-1)!.state,'complete');assert.ok(service.store.getPost('3020'));
+        assert.equal(requests[0],'/api/stats');assert.ok(requests.includes('/api/jobs'));assert.ok(requests.some(path=>path.endsWith('/batch')));assert.equal(requests.some(path=>path.includes('/media')),false);
+        console.log('PASS 系统代理通路：资料库域名无法直连时，原生网络通道仍可完成同步');
+      }finally{await session.defaultSession.setProxy({mode:'system'});await new Promise<void>(resolve=>proxy.close(()=>resolve()));}
+    }
+    {
+      let reads=0;const account={id:'303',handle:'test',name:'测试'};
+      service.store.ingest([{id:'3030',author:'test',authorName:'测试',text:'手动保存测试',publishedAt:null,url:'https://x.com/test/status/3030',media:[{type:'photo',url:'https://pbs.twimg.com/test.jpg',thumbnail:'https://pbs.twimg.com/test.jpg'},{type:'video',url:'https://video.twimg.com/native-test.mp4',thumbnail:'https://pbs.twimg.com/poster.jpg'}]}],account.id,'bookmark');
+      await session.defaultSession.protocol.handle('https',async request=>{assert.equal(new URL(request.url).hostname,'video.twimg.com');reads++;return new Response('native-video-stream',{headers:{'Content-Type':'video/mp4'}});});
+      try{
+        const collector=new Collector(()=>{});const result=await collector.cacheVideos(connection,['3030']);
+        assert.deepEqual(result,{saved:1,failed:0,total:1});assert.equal(reads,1);assert.equal(readdirSync(join(work,'library/media')).length,2);
+        console.log('PASS 原生网络手动保存：只下载所选视频，流式上传成功，不保存图片');
+      }finally{session.defaultSession.protocol.unhandle('https');}
+    }
+    console.log('10 项采集器场景检查通过；仅使用模拟 X 响应和本机测试资料库。');
   } finally { await service.close(); }
 }).catch(error => { console.error(error); exitCode = 1; }).finally(() => app.exit(exitCode));

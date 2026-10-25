@@ -1,4 +1,4 @@
-import { app, BrowserWindow, session, type Session } from 'electron';
+import { app, BrowserWindow, net, session, type Session } from 'electron';
 import { appendFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseTimeline } from '../shared/x-parser';
@@ -7,6 +7,7 @@ import { saveVideos } from './media-cache';
 import { blockedXPage, checkXStatus, readXResponse, XSyncBlocked } from './sync-policy';
 import { syncTimeline } from './sync-timeline';
 import { SyncCooldown } from './sync-cooldown';
+import { createLibraryRequest, type FetchRequest } from './library-client';
 type Template = { url: string; method: string; headers: Record<string,string>; postData?: string };
 type Packet = { template: Template; json: any };
 type Pending = { resolve:(packet:Packet)=>void; reject:(error:Error)=>void };
@@ -20,8 +21,10 @@ export class Collector {
   private failure:Error|null=null;
   private collecting=false;
   private cooldown:SyncCooldown;
+  private request:FetchRequest;
   account:Account|null=null;
-  constructor(private notify:(state:SyncState)=>void) {
+  constructor(private notify:(state:SyncState)=>void, options:{fetcher?:FetchRequest}={}) {
+    this.request=options.fetcher??((url,init)=>net.fetch(url,init));
     this.session=session.fromPartition('persist:shizang-x');
     this.cooldown=new SyncCooldown(join(app.getPath('userData'),'sync-cooldown.json'));
   }
@@ -39,9 +42,10 @@ export class Collector {
     for(const pending of this.waiting.values())pending.reject(error);
   }
   private check(){if(this.failure)throw this.failure;}
+  private log(message:string){try{appendFileSync(join(app.getPath('userData'),'connection.log'),new Date().toISOString()+' '+message+'\n',{mode:0o600});}catch{}}
   private async ensureWindow(show=true){
     if(this.window&&!this.window.isDestroyed()){if(show){this.window.show();this.window.focus();}return;}
-    const log=(message:string)=>{try{appendFileSync(join(app.getPath('userData'),'connection.log'),new Date().toISOString()+' '+message+'\n',{mode:0o600});}catch{}};
+    const log=(message:string)=>this.log(message);
     await this.session.setProxy({mode:'system'});
     log('X connection: '+await this.session.resolveProxy('https://x.com'));
     const w=new BrowserWindow({width:1000,height:800,title:'连接 X · 拾藏',show,webPreferences:{session:this.session,nodeIntegration:false,contextIsolation:true,sandbox:true}});
@@ -88,7 +92,7 @@ export class Collector {
     if(this.running)throw new Error('请等待当前同步结束');this.running=true;this.stopped=false;
     try{
       this.notify({running:true,state:'running',count:0,message:'正在保存视频'});
-      const result=await saveVideos(connection,{ids,stopped:()=>this.stopped,progress:(saved,total,failed)=>this.notify({running:true,state:'running',count:saved,message:`正在保存视频 ${saved+failed} / ${total}`})});
+      const result=await saveVideos(connection,{ids,fetcher:this.request,stopped:()=>this.stopped,progress:(saved,total,failed)=>this.notify({running:true,state:'running',count:saved,message:`正在保存视频 ${saved+failed} / ${total}`})});
       this.notify({running:false,state:this.stopped?'stopped':'complete',count:result.saved,message:this.stopped?'已停止保存视频':`已保存 ${result.saved} 个视频${result.failed?`，${result.failed} 个暂未保存，可重新尝试`:''}`});return result;
     }catch(e){this.notify({running:false,state:'error',count:0,message:e instanceof Error?e.message:'媒体保存失败'});throw e;}
     finally{this.running=false;}
@@ -117,14 +121,13 @@ export class Collector {
   }
   async sync(options:{connection:Connection;sources:Source[];mode:'recent';background?:boolean}){
     if(this.running)throw new Error('已有同步任务');this.running=true;this.stopped=false;this.failure=null;this.collecting=true;let total=0;
-    const api=async(path:string,body?:any)=>{
-      const response=await fetch(options.connection.url+path,{method:body?'POST':'GET',headers:{Authorization:'Bearer '+options.connection.token,'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined,signal:AbortSignal.timeout(30000)});
-      const json=await response.json();if(!response.ok)throw new Error(json.error??'资料库连接失败');return json;
-    };
+    const api=createLibraryRequest(options.connection,{fetcher:this.request,log:event=>this.log('Library request: '+JSON.stringify(event))});
     try{
       if(options.mode!=='recent')throw new Error('仅支持同步新增收藏和点赞');
       await this.status();if(!this.account)throw new Error('请先打开 X 窗口完成登录，再手动同步。');
       this.cooldown.check(this.account.id);
+      this.notify({running:true,state:'waiting',count:0,message:'正在连接资料库'});
+      await api('/api/stats');
       for(const source of new Set(options.sources)){
         if(this.stopped)break;
         this.notify({running:true,state:'login',source,count:total,message:`正在打开 X ${source==='bookmark'?'收藏':'点赞'}列表`});
