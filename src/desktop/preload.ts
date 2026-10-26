@@ -4,6 +4,7 @@ const bridge: DesktopBridge = {
   preferences:ipcRenderer.sendSync('preferences:get'),savePreference:(key,value)=>ipcRenderer.invoke('preferences:save',key,value),
   platform: process.platform,
   connection: () => ipcRenderer.invoke('connection:get'), saveConnection: c => ipcRenderer.invoke('connection:save',c),
+  savedRemote: () => ipcRenderer.invoke('connection:saved-remote'),
   xStatus: () => ipcRenderer.invoke('x:status'), loginX: () => ipcRenderer.invoke('x:login'),
   sync: options => ipcRenderer.invoke('x:sync',options), stopSync: () => ipcRenderer.invoke('x:stop'),
   logoutX: () => ipcRenderer.invoke('x:logout'),

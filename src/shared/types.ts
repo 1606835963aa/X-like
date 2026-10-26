@@ -23,7 +23,7 @@ export type Author = { id:string; handle:string; name:string; avatar:string; cou
 export type Stats = { total: number; bookmarks: number; likes: number; unread: number; pinned: number; archived: number; photos: number; videos: number; tags: { name: string; count: number }[]; authors: Author[]; folders: { name: string; count: number }[]; accounts: Account[]; lastSync: any; };
 export type DesktopBridge = {
   preferences:Record<string,string>;savePreference:(key:string,value:string)=>Promise<void>;
-  platform: string; connection: () => Promise<Connection>; saveConnection: (c: Connection | null) => Promise<Connection>;
+  platform: string; connection: () => Promise<Connection>; savedRemote: () => Promise<Connection | null>; saveConnection: (c: Connection | null) => Promise<Connection>;
   xStatus: () => Promise<{ connected: boolean; account: Account | null }>; loginX: () => Promise<void>;
   sync: (options: { connection: Connection; sources: Source[]; mode: 'recent'; background?:boolean; automatic?:boolean }) => Promise<void>;
   stopSync: () => Promise<void>; onSync: (callback: (s: SyncState) => void) => () => void;

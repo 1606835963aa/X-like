@@ -24,6 +24,10 @@ Keep the service computer running. Devices must be able to reach it, and the com
 
 The desktop app's local data is stored in the system's Shizang application-data directory. The standalone service stores data in the project's `data/` directory by default. These are separate libraries.
 
+On desktop, connect once and then switch between local and remote libraries in Settings. The remote address and credentials are kept encrypted, and your selection survives restarts. Use the change-remote-library action to connect to another address.
+
+Switching does not move data or start an X sync. The local library remains available when the remote service is offline, and local-mode startup does not contact that service.
+
 Export a JSON backup from the local library, switch to the shared library, then import that backup. Both desktop and phone should then connect to the shared service. Switching the connection does not move existing data automatically.
 
 ## Configuration

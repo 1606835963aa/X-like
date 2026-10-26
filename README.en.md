@@ -19,6 +19,8 @@ A saved post is only useful if you can find it later. Shizang turns your bookmar
 
 Remote storage is optional. If you configure it, you can use a library hosted on a cloud server, an ordinary computer, a home server or your own NAS. Connect your devices to the same library when you want to share it.
 
+Android currently connects to a shared library, which can run on an ordinary computer, a cloud server or a NAS.
+
 ## Features
 
 | Find | Organize | Use on your devices |
@@ -78,6 +80,8 @@ npm start
 4. Search your library and organize posts with tags, folders and notes.
 
 Sync on startup is off by default and can be enabled in Settings. Rate limits, expired sessions and account verification stop the sync. Rate-limit waiting periods survive a restart; you can sync manually once the wait ends.
+
+In Settings, switch between the local library and your saved remote library with one click. The remote address and credentials remain encrypted on this computer, and the app remembers your selected library after a restart.
 
 ### Share with your phone, using an ordinary computer
 

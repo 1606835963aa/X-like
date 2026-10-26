@@ -5,6 +5,7 @@ import { Share } from '@capacitor/share';
 import type { Connection } from '../shared/types';
 import { xMediaUrl } from '../shared/media';
 let current:Connection|null=null;
+const connectionFailure=(error:unknown)=>new Error(error instanceof Error&&error.name==='TimeoutError'?'连接资料库超时，请稍后重试。':'资料库暂时无法连接，请确认服务已启动，并检查网络。');
 export function setNativeTheme(theme:string){if(Capacitor.getPlatform()==='android')void SystemBars.setStyle({style:theme==='dark'?SystemBarsStyle.Dark:SystemBarsStyle.Light}).catch(()=>{});}
 export function savePreference(key:string,value:string){localStorage.setItem(key,value);void window.shizang?.savePreference?.(key,value).catch(()=>{});}
 export function setConnection(c:Connection|null){current=c;}
@@ -12,6 +13,10 @@ export function getConnection(){return current;}
 export async function loadConnection():Promise<Connection|null>{
   if(window.shizang)return window.shizang.connection();
   const result=await Preferences.get({key:'connection'});try{return result.value?JSON.parse(result.value):null;}catch{return null;}
+}
+export async function loadSavedRemote():Promise<Connection|null>{
+  if(window.shizang?.savedRemote)return window.shizang.savedRemote();
+  const connection=await loadConnection();return connection&&!connection.local?connection:null;
 }
 export async function saveConnection(c:Connection|null){
   const saved=window.shizang?await window.shizang.saveConnection(c):c;
@@ -22,10 +27,10 @@ export async function requestAt(connection:Connection|null,path:string,options:{
   if(!connection)throw new Error('请先连接资料库');
   const headers:Record<string,string>={'Content-Type':'application/json'};if(connection.token)headers.Authorization='Bearer '+connection.token;
   if(Capacitor.isNativePlatform()){
-    const r=await CapacitorHttp.request({url:connection.url+path,method:options.method??(options.body?'POST':'GET'),headers,data:options.body,responseType:options.text?'text':'json',connectTimeout:15000,readTimeout:45000});
+    let r;try{r=await CapacitorHttp.request({url:connection.url+path,method:options.method??(options.body?'POST':'GET'),headers,data:options.body,responseType:options.text?'text':'json',connectTimeout:15000,readTimeout:45000});}catch(e){throw connectionFailure(e);}
     if(r.status>=400)throw new Error(typeof r.data==='object'?r.data.error:'资料库暂时无法连接');return r.data;
   }
-  const r=await fetch(connection.url+path,{method:options.method??(options.body?'POST':'GET'),headers,body:options.body?JSON.stringify(options.body):undefined,signal:AbortSignal.timeout(45000)});
+  let r;try{r=await fetch(connection.url+path,{method:options.method??(options.body?'POST':'GET'),headers,body:options.body?JSON.stringify(options.body):undefined,signal:AbortSignal.timeout(45000)});}catch(e){throw connectionFailure(e);}
   if(!r.ok){const error=await r.json().catch(()=>({}));throw new Error(error.error??'资料库暂时无法连接');}
   return options.text?r.text():r.json();
 }

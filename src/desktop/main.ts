@@ -4,13 +4,13 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync, unlinkSync } from '
 import { startService } from '../server/service';
 import { Collector } from './collector';
 import { loadPreferences, validPreference } from './preferences';
+import { LibraryConnections, validConnection } from './connections';
 import type { Connection } from '../shared/types';
 
 if(process.env.SHIZANG_USER_DATA)app.setPath('userData',process.env.SHIZANG_USER_DATA);
 app.setName('拾藏');
 if(!app.requestSingleInstanceLock())app.quit();
 let main:BrowserWindow|null=null;let collector:Collector;let local:Awaited<ReturnType<typeof startService>>;let connection:Connection;
-const validConnection=(c:Connection)=>{const u=new URL(c.url);if(!['http:','https:'].includes(u.protocol)||u.username||u.password)throw new Error('请输入资料库的 HTTP 或 HTTPS 地址');c.url=u.origin;if(c.token.length<20)throw new Error('连接凭证不完整');return c;};
 async function createWindow(){
   main=new BrowserWindow({width:1400,height:920,minWidth:800,minHeight:600,title:'拾藏',backgroundColor:'#fdfdf6',titleBarStyle:process.platform==='darwin'?'hiddenInset':'default',webPreferences:{preload:join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}});
   main.webContents.setWindowOpenHandler(({url})=>{if(/^https?:\/\//.test(url))void shell.openExternal(url);return{action:'deny'};});
@@ -26,14 +26,13 @@ void app.whenReady().then(async()=>{
   const localToken=existsSync(localTokenFile)?readFileSync(localTokenFile,'utf8'):local.createDevice('这台电脑');
   if(!existsSync(localTokenFile))writeFileSync(localTokenFile,localToken,{mode:0o600});
   const localConnection:Connection={url:`http://127.0.0.1:${local.port}`,token:localToken,name:'本机资料库',local:true};
-  const connectionFile=join(app.getPath('userData'),'connection.enc');
-  connection=localConnection;
-  if(existsSync(connectionFile)&&safeStorage.isEncryptionAvailable()){try{const saved=validConnection(JSON.parse(safeStorage.decryptString(readFileSync(connectionFile))));connection=saved.local||(saved.name==='本机资料库'&&new URL(saved.url).hostname==='127.0.0.1')?localConnection:saved;}catch{}}
+  const connections=new LibraryConnections(app.getPath('userData'),localConnection,safeStorage);
+  connection=connections.current();
   if(process.env.SHIZANG_CONNECTION_FILE){
     const setup=validConnection(JSON.parse(readFileSync(process.env.SHIZANG_CONNECTION_FILE,'utf8')));
     const verified=await net.fetch(setup.url+'/api/stats',{credentials:'omit',headers:{Authorization:'Bearer '+setup.token},signal:AbortSignal.timeout(10000)});
-    if(!verified.ok||!safeStorage.isEncryptionAvailable())throw new Error('资料库连接配置无法保存');
-    connection=setup;writeFileSync(connectionFile,safeStorage.encryptString(JSON.stringify(setup)),{mode:0o600});unlinkSync(process.env.SHIZANG_CONNECTION_FILE);
+    if(!verified.ok)throw new Error('资料库连接配置无法保存');
+    connection=connections.select(setup);unlinkSync(process.env.SHIZANG_CONNECTION_FILE);
   }
   collector=new Collector(s=>{main?.webContents.send('sync',s);});
   const preferencesFile=join(app.getPath('userData'),'preferences.json');let rawPreferences:unknown;
@@ -43,9 +42,10 @@ void app.whenReady().then(async()=>{
   ipcMain.on('preferences:get',event=>{event.returnValue={...preferences};});
   ipcMain.handle('preferences:save',(_,key:string,value:string)=>{if(!validPreference(key,value))throw new Error('设置值无效');if(preferences[key]===value)return;preferences[key]=value;writeFileSync(preferencesFile,JSON.stringify(preferences),{mode:0o600});});
   ipcMain.handle('connection:get',()=>connection);
+  ipcMain.handle('connection:saved-remote',()=>connections.savedRemote());
   ipcMain.handle('connection:save',(_,c:Connection|null)=>{
-    connection=c?validConnection(c):localConnection;
-    if(connection.local){if(existsSync(connectionFile))unlinkSync(connectionFile);}else if(safeStorage.isEncryptionAvailable())writeFileSync(connectionFile,safeStorage.encryptString(JSON.stringify(connection)),{mode:0o600});
+    if(collector.running)throw new Error('请先完成或停止当前任务，再切换资料库');
+    connection=connections.select(c);
     return connection;
   });
   ipcMain.handle('x:login',()=>collector.open());ipcMain.handle('x:status',()=>collector.status());
@@ -55,7 +55,7 @@ void app.whenReady().then(async()=>{
     if(options?.mode!=='recent')throw new Error('仅支持同步新增收藏和点赞');
     if(!Array.isArray(options.sources)||!options.sources.length||options.sources.some((s:unknown)=>s!=='bookmark'&&s!=='like'))throw new Error('请选择收藏或点赞');
     if(options.automatic&&preferences.autoSync!=='true')throw new Error('打开软件时同步已关闭');
-    validConnection(options.connection);void collector.sync(options);
+    options.connection=validConnection(options.connection);void collector.sync(options);
   });
   ipcMain.handle('videos:save',(_,ids:string[])=>{
     if(!Array.isArray(ids)||!ids.length||ids.length>1000||ids.some(id=>typeof id!=='string'||!/^\d{1,25}$/.test(id)))throw new Error('请选择需要保存的视频');
