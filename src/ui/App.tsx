@@ -12,6 +12,7 @@ import { TagChips } from './TagChips';
 import { mergeTags, tagKey } from '../shared/hashtags';
 import { SearchSelect } from './SearchSelect';
 import { DirectoryPage } from './DirectoryPage';
+import { APP_VERSION } from '../shared/version';
 
 type View='all'|'bookmark'|'like'|'unread'|'pinned'|'archive'|'settings'|'authors'|'tags';
 const headings:Record<View,string>={all:'全部资料',bookmark:'我的收藏',like:'我的点赞',unread:'稍后阅读',pinned:'置顶资料',archive:'已归档',settings:'设置',authors:'作者',tags:'标签'};
@@ -159,5 +160,5 @@ function SettingsPage({connection,connectionError,savedRemote,switching,switchLi
     {window.shizang&&<section className="settings-card"><h2><Bookmark size={20}/>X 账号</h2><div className="setting-row"><div><strong>{xAccount.connected?(xAccount.account?.handle?'@'+xAccount.account.handle:'已连接 X'):'尚未连接'}</strong><p>在这台电脑登录，并将新增收藏和点赞同步到当前资料库。</p></div><Button onClick={login}>{xAccount.connected?'打开 X 窗口':'连接 X'}</Button></div>{xAccount.connected&&<button className="text-button danger" onClick={()=>{if(confirm('退出这台电脑的 X 登录？已同步资料会保留。'))void window.shizang!.logoutX().catch(e=>toast(e.message));}}>退出 X 登录</button>}</section>}
     {window.shizang&&<section className="settings-card"><h2><RefreshCw size={20}/>同步</h2><div className="setting-row"><div><strong>打开软件时同步</strong><p>默认关闭。开启后，在启动时读取新增收藏和点赞。</p></div><input type="checkbox" aria-label="打开软件时同步" checked={autoSync} onChange={e=>{setAutoSync(e.target.checked);savePreference('autoSync',String(e.target.checked));}}/></div></section>}
     <section className="settings-card"><h2><Monitor size={20}/>外观与备份</h2><div className="setting-row"><div><strong>界面主题</strong><p>选择适合当前环境的显示方式。</p></div><select aria-label="界面主题" value={theme} onChange={e=>setTheme(e.target.value)}><option value="light">浅色</option><option value="dark">深色</option></select></div><div className="setting-row"><div><strong>导出资料备份</strong><p>包含正文、标签、备注和来源记录。</p></div><Button onClick={backup}><Download size={16}/>导出 JSON</Button></div></section>
-    <section className="settings-card"><h2><Smartphone size={20}/>已连接的设备</h2>{devices.map(d=><div className="setting-row" key={d.id}><div><strong>{d.name}</strong><p>最近访问 {date(d.last_seen_at)}</p></div><span className="device-check"><CircleCheck size={16}/>已连接</span></div>)}</section><p className="app-version">拾藏 · 0.1.0</p></div>;
+    <section className="settings-card"><h2><Smartphone size={20}/>已连接的设备</h2>{devices.map(d=><div className="setting-row" key={d.id}><div><strong>{d.name}</strong><p>最近访问 {date(d.last_seen_at)}</p></div><span className="device-check"><CircleCheck size={16}/>已连接</span></div>)}</section><p className="app-version">拾藏 · {APP_VERSION}</p></div>;
 }

@@ -1,7 +1,11 @@
 import {spawnSync} from 'node:child_process';
 import {mkdirSync} from 'node:fs';
 import path from 'node:path';
+import {prepareDesktopLegal} from './legal.mjs';
 const target=process.argv[2];if(!['mac','win'].includes(target))throw new Error('请选择 mac 或 win');
 const base=process.cwd(),tmp=path.join(base,'tmp');mkdirSync(tmp,{recursive:true});
-const args=target==='mac'?['--mac','dir','--arm64','--config.electronDist=node_modules/electron/dist']:['--win','nsis','--x64',`--config.electronDownload.cache=${path.join(tmp,'electron-cache')}`];
+process.env.electron_config_cache??=path.join(tmp,'electron-cache');
+await import('electron');
+prepareDesktopLegal('dist/legal');
+const args=target==='mac'?['--mac','dir','zip','--arm64','--config.electronDist=node_modules/electron/dist']:['--win','nsis','--x64',`--config.electronDownload.cache=${path.join(tmp,'electron-cache')}`];
 const result=spawnSync(process.execPath,['node_modules/electron-builder/cli.js',...args],{stdio:'inherit',env:{...process.env,TMPDIR:tmp,ELECTRON_BUILDER_CACHE:path.join(tmp,'builder-cache')}});if(result.status!==0)process.exit(result.status??1);

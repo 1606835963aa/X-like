@@ -1,7 +1,12 @@
 import { build } from 'esbuild';
 import { build as viteBuild } from 'vite';
+import { prepareLegal } from './legal.mjs';
+import { cpSync } from 'node:fs';
 await viteBuild();
+prepareLegal('dist/legal');
+cpSync('dist/legal', 'dist/ui/legal', { recursive: true });
 const common = { bundle: true, platform: 'node', format: 'cjs', target: 'node24', sourcemap: false, external: ['electron'], logLevel: 'info' };
 await build({ ...common, entryPoints: ['src/server/entry.ts'], outfile: 'dist/server/entry.cjs' });
+await build({ ...common, entryPoints: ['src/server/recovery-cli.ts'], outfile: 'dist/server/recovery-cli.cjs' });
 await build({ ...common, entryPoints: ['src/desktop/main.ts'], outfile: 'dist/desktop/main.cjs' });
 await build({ ...common, entryPoints: ['src/desktop/preload.ts'], outfile: 'dist/desktop/preload.cjs' });

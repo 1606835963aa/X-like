@@ -1,4 +1,4 @@
-import { app, BrowserWindow, net, session, type Session } from 'electron';
+import { app, BrowserWindow, dialog, net, session, type Session } from 'electron';
 import { appendFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseTimeline } from '../shared/x-parser';
@@ -8,6 +8,7 @@ import { blockedXPage, checkXStatus, readXResponse, XSyncBlocked } from './sync-
 import { syncTimeline } from './sync-timeline';
 import { SyncCooldown } from './sync-cooldown';
 import { createLibraryRequest, type FetchRequest } from './library-client';
+import { loginNavigation } from './login-policy';
 type Template = { url: string; method: string; headers: Record<string,string>; postData?: string };
 type Packet = { template: Template; json: any };
 type Pending = { resolve:(packet:Packet)=>void; reject:(error:Error)=>void };
@@ -22,6 +23,8 @@ export class Collector {
   private collecting=false;
   private cooldown:SyncCooldown;
   private request:FetchRequest;
+  private authWindows = new Set<BrowserWindow>();
+  private loginHelpOpen = false;
   account:Account|null=null;
   constructor(private notify:(state:SyncState)=>void, options:{fetcher?:FetchRequest}={}) {
     this.request=options.fetcher??((url,init)=>net.fetch(url,init));
@@ -43,6 +46,36 @@ export class Collector {
   }
   private check(){if(this.failure)throw this.failure;}
   private log(message:string){try{appendFileSync(join(app.getPath('userData'),'connection.log'),new Date().toISOString()+' '+message+'\n',{mode:0o600});}catch{}}
+  private configureLoginWindow(w: BrowserWindow) {
+    const guard = (event: Electron.Event, url: string) => {
+      const decision = loginNavigation(url);
+      if (decision === 'allow') return;
+      event.preventDefault();
+      if (decision === 'google') void this.explainGoogleLogin();
+      else this.notify({running:this.running,state:'error',count:0,message:'这个链接无法在登录窗口打开，请在 X 登录页继续。'});
+    };
+    w.webContents.on('will-navigate', guard);
+    w.webContents.on('will-redirect', guard);
+    w.webContents.setWindowOpenHandler(({url}) => {
+      const decision = loginNavigation(url);
+      if (decision === 'google') void this.explainGoogleLogin();
+      if (decision !== 'allow' || this.collecting || this.authWindows.size >= 3) return {action:'deny'};
+      return {action:'allow',overrideBrowserWindowOptions:{width:620,height:780,title:'X 账号登录',webPreferences:{session:this.session,nodeIntegration:false,contextIsolation:true,sandbox:true}}};
+    });
+    w.webContents.on('did-create-window', child => {
+      this.authWindows.add(child);this.configureLoginWindow(child);
+      child.on('closed',()=>this.authWindows.delete(child));
+    });
+  }
+  private async explainGoogleLogin() {
+    if(this.loginHelpOpen || !this.window || this.window.isDestroyed())return;
+    this.loginHelpOpen=true;
+    try {
+      const result=await dialog.showMessageBox(this.window,{type:'info',title:'使用 X 账号登录',message:'Google 不支持在这个内嵌窗口登录。',detail:'请使用 X 用户名、邮箱或手机号和 X 密码登录。需要设置密码时，可在 X 登录页选择“忘记密码”。',buttons:['返回 X 登录','关闭'],defaultId:0,cancelId:1});
+      if(result.response===0 && this.window && !this.window.isDestroyed())await this.window.loadURL('https://x.com/i/flow/login');
+    } catch {this.notify({running:false,state:'error',count:0,message:'请在 X 窗口使用用户名或邮箱继续登录。'});}
+    finally {this.loginHelpOpen=false;}
+  }
   private async ensureWindow(show=true){
     if(this.window&&!this.window.isDestroyed()){if(show){this.window.show();this.window.focus();}return;}
     const log=(message:string)=>this.log(message);
@@ -51,8 +84,7 @@ export class Collector {
     const w=new BrowserWindow({width:1000,height:800,title:'连接 X · 拾藏',show,webPreferences:{session:this.session,nodeIntegration:false,contextIsolation:true,sandbox:true}});
     w.webContents.on('did-fail-load',(_event,code,description,_url,mainFrame)=>{if(mainFrame&&code!==-3){log(`Load failure: ${code} ${description}`);const error=new Error(`X 页面加载失败：${description}`);if(this.collecting)this.interrupt(error);else this.notify({running:false,state:'error',count:0,message:error.message});}});
     w.webContents.on('did-finish-load',()=>{if(w.webContents.getURL().startsWith('https://'))log('X page loaded');});
-    this.window=w;w.webContents.setWindowOpenHandler(()=>({action:'deny'}));
-    w.webContents.on('will-navigate',(event,url)=>{try{const host=new URL(url).hostname;if(!(host==='x.com'||host.endsWith('.x.com')||host==='twitter.com'||host.endsWith('.twitter.com')))event.preventDefault();}catch{event.preventDefault();}});
+    this.window=w;this.configureLoginWindow(w);
     const requests=new Map<string,Template>();const responses=new Map<string,{status:number;retryAfter?:string;reset?:string}>();
     const navigation=(_event:unknown,url:string)=>{const error=blockedXPage(url);if(error)this.interrupt(error);};
     w.webContents.on('did-navigate',navigation);w.webContents.on('did-redirect-navigation',navigation);
@@ -80,7 +112,7 @@ export class Collector {
         }catch(error){if(error instanceof XSyncBlocked)this.interrupt(error);else this.waiting.get(source)?.reject(error as Error);}
       }
     });
-    w.on('closed',()=>{if(this.window===w)this.window=null;if(this.collecting)this.stop();});
+    w.on('closed',()=>{for(const child of this.authWindows)child.destroy();this.authWindows.clear();if(this.window===w)this.window=null;if(this.collecting)this.stop();});
   }
   async open(show=true){
     await this.ensureWindow(show);

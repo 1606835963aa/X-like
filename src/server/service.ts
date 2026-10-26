@@ -1,10 +1,11 @@
 import http, { type IncomingMessage, type ServerResponse } from 'node:http';
-import { readFileSync, writeFileSync, existsSync, mkdirSync, statSync, createReadStream, createWriteStream, renameSync, unlinkSync, chmodSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, statSync, createReadStream, createWriteStream, renameSync, unlinkSync } from 'node:fs';
 import { Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { resolve, join, extname, basename } from 'node:path';
 import { randomBytes, createHmac, timingSafeEqual, createHash } from 'node:crypto';
 import { Store } from './store';
+import { APP_VERSION } from '../shared/version';
 import { parseImport } from '../shared/x-parser';
 import { xMediaUrl } from '../shared/media';
 import type { Post, Source } from '../shared/types';
@@ -12,8 +13,8 @@ import type { Post, Source } from '../shared/types';
 type Options = { dataDir: string; uiDir?: string; host?: string; port?: number; name?: string; pairingKey?: string };
 export async function startService(options: Options) {
   mkdirSync(options.dataDir, { recursive: true, mode: 0o700 });
-  chmodSync(options.dataDir, 0o700);
   const store = new Store(join(options.dataDir, 'library.sqlite'));
+  try {
   const keyFile = join(options.dataDir, 'pairing-key');
   let pairingKey = options.pairingKey || (existsSync(keyFile) ? readFileSync(keyFile,'utf8').trim() : randomBytes(9).toString('hex').toUpperCase());
   if (!existsSync(keyFile)) writeFileSync(keyFile, pairingKey, { mode: 0o600 });
@@ -41,7 +42,7 @@ export async function startService(options: Options) {
     if(req.method==='OPTIONS'){res.writeHead(204);res.end();return;}
     const url = new URL(req.url??'/', 'http://localhost'); const path = url.pathname;
     try {
-      if(path==='/api/health'){send(res,200,{ok:true,app:'shizang',version:'0.1.0',name:options.name??'拾藏资料库'});return;}
+      if(path==='/api/health'){send(res,200,{ok:true,app:'shizang',version:APP_VERSION,name:options.name??'拾藏资料库'});return;}
       if(path==='/api/pair' && req.method==='POST'){
         const ip=req.socket.remoteAddress??'unknown';const f=failures.get(ip);
         if(f && f.count>=6 && f.until>Date.now()){send(res,429,{error:'连接码尝试过多，请稍后再试'});return;}
@@ -163,7 +164,9 @@ export async function startService(options: Options) {
   server=http.createServer((req,res)=>{void request(req,res);});
   await new Promise<void>((r,j)=>{server.once('error',j);server.listen(options.port??0,options.host??'127.0.0.1',()=>r());});
   const address=server.address() as import('node:net').AddressInfo;
-  return { server,store,port:address.port,pairingKey,createDevice(name:string){const token=randomBytes(32).toString('base64url');store.addDevice(name,token);return token;},close:()=>new Promise<void>((resolve)=>server.close(()=>{store.close();resolve();})) };
+  let closing: Promise<void> | undefined;
+  return { server,store,port:address.port,pairingKey,createDevice(name:string){const token=randomBytes(32).toString('base64url');store.addDevice(name,token);return token;},close:()=>closing??=new Promise<void>((resolve,reject)=>server.close(()=>{try{store.close();resolve();}catch(error){reject(error);}})) };
+  } catch (error) { store.close(); throw error; }
 }
 
 const mediaFile=(url:string,dir:string)=>join(dir,createHash('sha256').update(url).digest('hex'));

@@ -5,16 +5,25 @@ import { randomUUID, createHash } from 'node:crypto';
 import type { Account, Author, Post, PostInput, Query, Source } from '../shared/types';
 import { extractHashtags, mergeTags, tagKey } from '../shared/hashtags';
 import { authorId } from '../shared/directory';
+import { DATABASE_VERSION, DatabaseRecoveryError, snapshotBeforeUpgrade } from './database-recovery';
 
 const now = () => new Date().toISOString();
 const clean = (v: unknown, max = 50000) => typeof v === 'string' ? v.slice(0, max) : '';
 const norm = (v: string) => v.normalize('NFKC').toLocaleLowerCase();
 export class Store {
   db: DatabaseSync;
+  upgradeBackup?: string;
   constructor(filename: string) {
     if (filename !== ':memory:') mkdirSync(dirname(filename), { recursive: true });
     this.db = new DatabaseSync(filename);
+    try {
+    this.db.exec('PRAGMA busy_timeout=5000');
+    const version = Number(this.db.prepare('PRAGMA user_version').get()!.user_version);
+    if (version > DATABASE_VERSION) throw new DatabaseRecoveryError('资料库由更新版本创建，请使用较新的拾藏打开。', 'DATABASE_TOO_NEW');
+    const hasPosts = !!this.db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='posts'").get();
+    if (filename !== ':memory:' && hasPosts && version < DATABASE_VERSION) this.upgradeBackup = snapshotBeforeUpgrade(this.db, filename);
     this.db.exec(`PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000;
+      BEGIN IMMEDIATE;
       CREATE TABLE IF NOT EXISTS posts (
         id TEXT PRIMARY KEY, text TEXT NOT NULL, author TEXT NOT NULL, author_name TEXT NOT NULL,
         avatar TEXT NOT NULL DEFAULT '', published_at TEXT, url TEXT NOT NULL, media TEXT NOT NULL DEFAULT '[]',
@@ -43,18 +52,23 @@ export class Store {
     this.db.function('tag_key', { deterministic: true }, value => tagKey(value));
     this.db.function('author_key', { deterministic: true }, (handle, name) => authorId(handle, name));
     this.db.function('shuffle_key', { deterministic: true }, (id, seed) => createHash('sha256').update(String(seed)).update('\0').update(String(id)).digest('hex'));
-    if (Number(this.db.prepare('PRAGMA user_version').get()!.user_version) < 2) {
-      this.db.exec('BEGIN IMMEDIATE');
-      try {
+    if (version < DATABASE_VERSION) {
         if (!this.db.prepare('PRAGMA table_info(posts)').all().some(column => column.name === 'hashtags')) this.db.exec("ALTER TABLE posts ADD COLUMN hashtags TEXT NOT NULL DEFAULT '[]'");
         for (const row of this.db.prepare('SELECT id,text,hashtags FROM posts').all() as {id:string;text:string;hashtags:string}[]) {
           this.db.prepare('UPDATE posts SET hashtags=? WHERE id=?').run(JSON.stringify(extractHashtags(row.text, JSON.parse(row.hashtags))), row.id);
           this.updateSearch(row.id);
         }
-        this.db.exec('PRAGMA user_version=2; COMMIT');
-      } catch (error) { this.db.exec('ROLLBACK'); throw error; }
+        this.db.exec(`PRAGMA user_version=${DATABASE_VERSION}`);
     }
     this.db.prepare("UPDATE jobs SET state='interrupted',ended_at=?,message='服务已重新启动，已收录内容保留' WHERE state='running'").run(now());
+    this.db.exec('COMMIT');
+    } catch (cause) {
+      try { this.db.exec('ROLLBACK'); } catch {}
+      this.db.close();
+      if (cause instanceof DatabaseRecoveryError) throw cause;
+      if (this.upgradeBackup) throw new DatabaseRecoveryError('资料库升级未完成，原资料已回滚。可重试或从升级前备份恢复。', 'DATABASE_MIGRATION_FAILED', this.upgradeBackup, { cause });
+      throw cause;
+    }
   }
   close() { this.db.close(); }
   setting(key: string) { return this.db.prepare('SELECT value FROM settings WHERE key=?').get(key)?.value as string | undefined; }

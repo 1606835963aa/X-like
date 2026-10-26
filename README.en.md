@@ -6,7 +6,7 @@
   <p><strong>Keep what matters. Find it again.</strong></p>
   <p>A personal library for your X / Twitter bookmarks and likes.<br />Use it on your computer without a NAS. Add a shared library when you need one.</p>
   <p><a href="#features">Features</a> · <a href="#quick-start">Quick start</a> · <a href="docs/shared-library.en.md">Shared library</a> · <a href="#building">Building</a></p>
-  <p><code>macOS</code> <code>Windows</code> <code>Android</code> <code>Docker / NAS</code></p>
+  <p><code>macOS</code> <code>Windows</code> <code>Optional shared library</code></p>
 </div>
 
 <p align="center"><img src="docs/assets/readme-cover.en.png" alt="Shizang: browsing, searching and organizing a personal library" width="1200" /></p>
@@ -19,7 +19,7 @@ A saved post is only useful if you can find it later. Shizang turns your bookmar
 
 Remote storage is optional. If you configure it, you can use a library hosted on a cloud server, an ordinary computer, a home server or your own NAS. Connect your devices to the same library when you want to share it.
 
-Android currently connects to a shared library, which can run on an ordinary computer, a cloud server or a NAS.
+The current development and release scope is Mac and Windows. Android and iOS source projects are retained; mobile development and releases are deferred.
 
 ## Features
 
@@ -28,7 +28,7 @@ Android currently connects to a shared library, which can run on an ordinary com
 | Search text, authors, tags, notes and quoted posts | Add tags, folders and notes | Sync from macOS or Windows |
 | Combine keywords, source, media and date filters | Mark as read, pin, archive and restore | Use a local desktop library |
 | Automatically index post hashtags | Merge duplicate posts while preserving both sources | Host a shared library on a computer, server or NAS |
-| Author and tag suggestions and directories | Export JSON backups and CSV | Browse and organize on Android |
+| Author and tag suggestions and directories | Export JSON backups and CSV | Switch between local and remote libraries |
 
 - **Incremental sync.** Sync new bookmarks, likes or both. Reading stops when a full page is already in the library.
 - **Find videos by author.** Author cards show post and video counts. Author and tag directories use a responsive grid with continuous browsing and full-directory search.
@@ -53,18 +53,15 @@ Android currently connects to a shared library, which can run on an ordinary com
 
 </details>
 
-### Browse the same library on your phone
-
-<p align="center"><img src="docs/assets/library-mobile.png" alt="Mobile library" width="300" />
-<img src="docs/assets/tags-mobile.png" alt="Mobile tag directory" width="300" /></p>
-
 Screenshots use a separate demonstration library. The application interface is currently in Simplified Chinese.
 
 ## Quick start
 
 ### Desktop, without a NAS
 
-Requires **Node.js 24** and Git.
+Running from source requires **Node.js 24.22.0 or newer 24.x** and Git. Desktop installers include their runtime.
+
+The first desktop launch or package build from source downloads the Electron runtime.
 
 ```sh
 git clone https://github.com/1606835963aa/X-like.git
@@ -83,7 +80,7 @@ Sync on startup is off by default and can be enabled in Settings. Rate limits, e
 
 In Settings, switch between the local library and your saved remote library with one click. The remote address and credentials remain encrypted on this computer, and the app remembers your selected library after a restart.
 
-### Share with your phone, using an ordinary computer
+### Share between computers
 
 Start the library service from the project directory:
 
@@ -94,8 +91,8 @@ npm run server
 The service prints a pairing code and stores data in the project's `data/` directory.
 
 1. Connect the desktop app to `http://127.0.0.1:5368` and enter the pairing code.
-2. Connect your phone to `http://<computer-LAN-address>:5368` with the same code.
-3. Sync new posts from the desktop app; browse and organize the same library on your phone.
+2. Connect another desktop to `http://<computer-LAN-address>:5368` with the same code.
+3. Browse and organize the same library on both computers; sync new posts from the computer signed in to X.
 
 Keep the service computer running and make sure the devices can reach it. See the [shared-library guide](docs/shared-library.en.md) for configuration, migration and backups.
 
@@ -113,7 +110,7 @@ To move existing local data, export a JSON backup, switch to the shared library 
 | Text, authors, sources, tags and organization | The selected local or shared library |
 | Images and unsaved videos | Loaded directly from X by the viewing device |
 | Videos explicitly saved from the desktop app | The selected library |
-| Mobile library connection | A device access credential |
+| Shared-library connection | Each computer's device access credential |
 
 The shared service receives no X login cookies and does not download media from X. Devices access it using its address and a device credential.
 
@@ -125,11 +122,10 @@ Local desktop data lives in the `library` folder inside the system’s Shizang a
 
 | Platform | Status |
 |---|---|
-| macOS · Apple Silicon | Built and runtime-verified, including login, sync and NAS access |
-| Windows · x64 | Installer built; real-device acceptance testing pending |
-| Android | APK built; real-device acceptance testing pending |
+| macOS 13+ · Apple Silicon | Built and runtime-verified, including login, sync and optional shared-library access |
+| Windows 10 / 11 · x64 | Compatibility is handled on a Windows computer; see the [Windows acceptance checklist, Chinese](docs/Windows验收.md) |
 | NAS · Linux ARM64 | Docker offline deployment and shared-library access verified |
-| iOS | Project prepared; no installation package built yet |
+| Android / iOS | Outside the current development and release scope |
 
 ## Building
 
@@ -140,15 +136,7 @@ npm run package:mac
 npm run package:win
 ```
 
-For Android, use JDK 21, Android SDK 36 and Build Tools 35:
-
-```sh
-npm run build
-npx --cache ./tmp/npm-cache cap sync android
-node scripts/android-build.mjs
-```
-
-The Android signing key and its configuration are stored under `private/`. Keep the same key for subsequent updates.
+Formal signing and notarization are deferred. Mac builds use an ad-hoc signature; Windows builds have no publisher signature. Distributions include AGPLv3 and third-party notices.
 
 Checks and icon generation:
 
@@ -158,7 +146,9 @@ npm run test:collector
 node scripts/icons.mjs
 ```
 
-The frontend uses React, desktop uses Electron, mobile uses Capacitor and the service uses Node.js built-in SQLite. Devices communicate with the library over HTTP.
+The frontend uses React, desktop uses Electron and the service uses Node.js built-in SQLite. Devices communicate with the library over HTTP.
+
+Startup failures offer logs, retry and database recovery. Schema upgrades create a validated backup before making changes and roll back on failure. Restore preserves the previous database and leaves saved media in place. See the [development and recovery guide, Chinese](docs/开发.md).
 
 - [Shared-library deployment](docs/shared-library.en.md)
 - [Development guide, Chinese](docs/开发.md)

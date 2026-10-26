@@ -10,18 +10,19 @@ Windows 兼容问题由 Windows 电脑上的负责人处理并实机验收。Mac
 
 ## 接入
 
-使用 Node.js 24.22.0 或更新的 24.x；仓库存在 `.node-version` 时以该文件为准。验收前记录 `git rev-parse HEAD` 与 `package.json` 的版本，保留现有资料目录，使用独立用户资料进行全新安装验证。
+使用 Node.js 24.22.0 或更新的 24.x，固定构建版本见 `.node-version`。验收前记录 `git rev-parse HEAD` 与 `package.json` 的版本，保留现有资料目录，使用独立用户资料进行全新安装验证。
 
 ```sh
 npm ci --cache ./tmp/npm-cache
 npm test
 npm run build
+npm run release:check
 npm run package:win
 ```
 
 安装包不要求终端用户安装 Node.js、Docker 或配置 NAS。
 
-文档与通用功能代码分开交接。先验收 GitHub 当前版本已有的安装、本机保存、代理和媒体能力。启动恢复、升级前备份、受控登录弹窗、许可打包、版本统一与部署配置由 Mac 端维护；对应代码到位后再补验。尚未出现在所验代码中的功能记录为“待代码同步”，不重复实现，也不据此认定为 Windows 独有故障。仓库提供 `release:check` 脚本后，同时运行 `npm run release:check`。
+当前 0.1.1 代码包含启动恢复、升级前备份、受控登录弹窗、许可打包、版本统一与部署配置。通用功能由 Mac 端维护，Windows 端在同一代码版本上完成下表全部检查，处理 Windows 独有问题，并记录实际结果。
 
 ## 必验流程
 

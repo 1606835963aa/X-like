@@ -9,6 +9,9 @@ __MACOSX/
 *.sqlite*
 data/
 private/
+.env
+.env.*
+!.env.example
 android/.gradle/
 android/local.properties
 android/app/build/

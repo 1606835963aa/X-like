@@ -4,7 +4,7 @@ Run the shared-library service on an ordinary computer, a cloud server, a home s
 
 ## Ordinary computer
 
-Requires Node.js 24. From the project directory:
+Requires Node.js 24.22.0 or newer 24.x. From the project directory:
 
 ```sh
 npm ci --cache ./tmp/npm-cache
@@ -15,7 +15,7 @@ npm run server
 The default port is `5368`. The service prints a pairing code.
 
 - Desktop app on the same computer: connect to `http://127.0.0.1:5368`.
-- Phone or another computer: connect using the service computer's LAN address, such as `http://192.168.1.100:5368`.
+- Another computer: connect using the service computer's LAN address, such as `http://192.168.1.100:5368`.
 - Enter the same pairing code on both devices. An already connected desktop app can also display the code in Settings.
 
 Keep the service computer running. Devices must be able to reach it, and the computer must allow access to port `5368`. For access across networks, use an already connected private network.
@@ -28,7 +28,7 @@ On desktop, connect once and then switch between local and remote libraries in S
 
 Switching does not move data or start an X sync. The local library remains available when the remote service is offline, and local-mode startup does not contact that service.
 
-Export a JSON backup from the local library, switch to the shared library, then import that backup. Both desktop and phone should then connect to the shared service. Switching the connection does not move existing data automatically.
+Export a JSON backup from the local library, switch to the shared library, then import that backup. Both computers should then connect to the shared service. Switching the connection does not move existing data automatically.
 
 ## Configuration
 
@@ -45,19 +45,22 @@ From the source tree:
 
 ```sh
 npm run build
+npm run setup:shared
 docker compose up -d --build
 ```
 
-The Compose configuration mounts `./dist` read-only as the program directory and persists data in `./data`. Its default user and group are `1000:10`; set `user` to an identity that can read and write your data directory.
+Run `npm run setup:shared` before starting Compose. It creates `.env` using the data directory's owner and preserves existing settings. Compose requires `SHIZANG_UID` and `SHIZANG_GID`; `SHIZANG_PORT`, `SHIZANG_BIND` and `SHIZANG_DATA_PATH` configure the host port, address and data path. On a Docker GUI without Node.js, copy `.env.example` to `.env` and fill in the data directory owner's UID/GID. The program mounts `./dist` read-only and persists data in the configured data directory.
 
 For an ARM64 offline bundle:
 
 ```sh
-docker load -i x-like-0.1.0-arm64.tar
+docker load -i x-like-<version>-arm64.tar
 docker compose -f compose.offline.yaml up -d
 ```
 
 On a NAS with a Docker GUI, import the image, create a project in the extracted bundle directory and use its `docker-compose.yaml`. An offline deployment does not need to pull the image again.
+
+Use the bundle's `.env.example`, which contains the image version. Set the data directory owner's UID/GID, save it as `.env` and make sure the GUI loads it before starting the project. Current desktop releases target Mac and Windows; mobile releases are deferred.
 
 Check `http://<service-address>:5368/api/health`; a response containing `ok: true` means the service is running. The pairing code is stored in `data/pairing-key`.
 
@@ -66,3 +69,7 @@ Check `http://<service-address>:5368/api/health`; a response containing `ok: tru
 For a server-program update, stop the service, replace `dist`, then start it using the same data directory. Static interface updates load after a refresh or reopening the app.
 
 To back up everything, stop the service, copy the complete data directory and start it again. Restore that directory while the service is stopped and ensure the service user can write to it. JSON exports preserve content and organization; the full data directory also preserves saved media and device connections.
+
+Before a schema upgrade, the service creates and validates a SQLite snapshot under `data/backups`. A failed backup prevents the upgrade, and a failed migration rolls back. To restore, stop the corresponding service, run `npm run restore:library -- --data-dir ./data --list`, then `npm run restore:library -- --data-dir ./data --backup "<backup-file>"`. Restore retains the previous database and WAL files under `backups/before-restore-*` and leaves media files in place.
+
+Desktop startup failures offer logs, retry and recovery. A running desktop app also has a Library menu to restart into recovery. The standalone service prints startup errors and writes redacted diagnostics to `data/logs/startup.log`.

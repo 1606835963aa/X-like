@@ -5,3 +5,5 @@
 !dist/server/**
 !dist/ui/
 !dist/ui/**
+!dist/legal/
+!dist/legal/**
