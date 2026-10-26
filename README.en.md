@@ -123,7 +123,7 @@ Local desktop data lives in the `library` folder inside the system’s Shizang a
 | Platform | Status |
 |---|---|
 | macOS 13+ · Apple Silicon | Built and runtime-verified, including login, sync and optional shared-library access |
-| Windows 10 / 11 · x64 | Compatibility is handled on a Windows computer; see the [Windows acceptance checklist, Chinese](docs/Windows验收.md) |
+| Windows 10 / 11 · x64 | Core local workflows verified on Windows 11; Windows 10 and real-account flows remain pending. See the [Windows acceptance record, Chinese](docs/Windows验收.md) |
 | NAS · Linux ARM64 | Docker offline deployment and shared-library access verified |
 | Android / iOS | Outside the current development and release scope |
 

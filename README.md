@@ -124,7 +124,7 @@ JSON 备份包含正文、来源、两类标签、备注与整理状态。完整
 | 平台 | 当前状态 |
 |---|---|
 | macOS 13+ · Apple Silicon | 已构建并完成运行验证，包括登录、同步与可选共享资料库 |
-| Windows 10 / 11 · x64 | 兼容性由 Windows 端负责人实机处理，见 [Windows 验收](docs/Windows验收.md) |
+| Windows 10 / 11 · x64 | Windows 11 本机核心流程已实机通过；Windows 10 与真实账号流程待验，见 [Windows 验收](docs/Windows验收.md) |
 | NAS · Linux ARM64 | Docker 离线部署与资料共享已验证 |
 | Android / iOS | 不在当前开发和发行范围 |
 

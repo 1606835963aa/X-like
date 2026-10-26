@@ -2,7 +2,7 @@ import http, { type IncomingMessage, type ServerResponse } from 'node:http';
 import { readFileSync, writeFileSync, existsSync, mkdirSync, statSync, createReadStream, createWriteStream, renameSync, unlinkSync } from 'node:fs';
 import { Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
-import { resolve, join, extname, basename } from 'node:path';
+import { resolve, join, extname, basename, relative, isAbsolute, sep } from 'node:path';
 import { randomBytes, createHmac, timingSafeEqual, createHash } from 'node:crypto';
 import { Store } from './store';
 import { APP_VERSION } from '../shared/version';
@@ -150,8 +150,10 @@ export async function startService(options: Options) {
       }
       if(req.method!=='GET'){send(res,405,{error:'不支持此操作'});return;}
       if(options.uiDir){
-        let filename=resolve(options.uiDir,decodeURIComponent(path).replace(/^\//,''));
-        if(!filename.startsWith(resolve(options.uiDir)+'/'))filename=join(options.uiDir,'index.html');
+        const root=resolve(options.uiDir);
+        let filename=resolve(root,decodeURIComponent(path).replace(/^\//,''));
+        const fromRoot=relative(root,filename);
+        if(fromRoot==='..'||fromRoot.startsWith('..'+sep)||isAbsolute(fromRoot))filename=join(root,'index.html');
         if(!existsSync(filename)||statSync(filename).isDirectory())filename=join(options.uiDir,'index.html');
         if(existsSync(filename)){
           const types:Record<string,string>={'.html':'text/html; charset=utf-8','.js':'application/javascript','.css':'text/css','.svg':'image/svg+xml','.png':'image/png','.json':'application/json','.woff2':'font/woff2'};
