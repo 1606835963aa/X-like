@@ -5,7 +5,7 @@
   <h1>Shizang · 拾藏</h1>
   <p><strong>Keep what matters. Find it again.</strong></p>
   <p>A personal library for your X / Twitter bookmarks and likes.<br />Use it on your computer without a NAS. Add a shared library when you need one.</p>
-  <p><a href="#features">Features</a> · <a href="#quick-start">Quick start</a> · <a href="docs/shared-library.en.md">Shared library</a> · <a href="#building">Building</a></p>
+  <p><a href="#downloads">Downloads</a> · <a href="#features">Features</a> · <a href="#quick-start">Quick start</a> · <a href="docs/shared-library.en.md">Shared library</a> · <a href="#building">Building</a></p>
   <p><code>macOS</code> <code>Windows</code> <code>Optional shared library</code></p>
 </div>
 
@@ -55,21 +55,20 @@ The current development and release scope is Mac and Windows. Android and iOS so
 
 Screenshots use a separate demonstration library. The application interface is currently in Simplified Chinese.
 
+## Downloads
+
+Current version: [**Shizang 0.1.1**](https://github.com/1606835963aa/X-like/releases/tag/v0.1.1).
+
+| System | Download | Install |
+|---|---|---|
+| macOS 13+ · Apple Silicon (M-series chips) | [Mac package · ZIP](https://github.com/1606835963aa/X-like/releases/download/v0.1.1/Shizang-0.1.1-macOS-arm64.zip) | Extract the ZIP and move 拾藏.app to Applications |
+| Windows · x64 (64-bit) | [Windows installer · EXE](https://github.com/1606835963aa/X-like/releases/download/v0.1.1/Shizang-0.1.1-Windows-x64.exe) | Run the installer and follow the setup wizard |
+
+Both packages include their runtime. No Node.js, Docker or NAS setup is required. [SHA-256 checksums](https://github.com/1606835963aa/X-like/releases/download/v0.1.1/SHA256SUMS-0.1.1.txt) are provided for both downloads.
+
 ## Quick start
 
 ### Desktop, without a NAS
-
-Running from source requires **Node.js 24.22.0 or newer 24.x** and Git. Desktop installers include their runtime.
-
-The first desktop launch or package build from source downloads the Electron runtime.
-
-```sh
-git clone https://github.com/1606835963aa/X-like.git
-cd X-like
-npm ci --cache ./tmp/npm-cache
-npm run build
-npm start
-```
 
 1. Open Shizang. It uses a local library on this computer by default.
 2. Connect your X account through the official X page opened by the desktop app.
@@ -79,6 +78,18 @@ npm start
 Sync on startup is off by default and can be enabled in Settings. Rate limits, expired sessions and account verification stop the sync. Rate-limit waiting periods survive a restart; you can sync manually once the wait ends.
 
 In Settings, switch between the local library and your saved remote library with one click. The remote address and credentials remain encrypted on this computer, and the app remembers your selected library after a restart.
+
+### Run from source
+
+Requires **Node.js 24.22.0 or newer 24.x** and Git. The first desktop launch or package build downloads the Electron runtime.
+
+```sh
+git clone https://github.com/1606835963aa/X-like.git
+cd X-like
+npm ci --cache ./tmp/npm-cache
+npm run build
+npm start
+```
 
 ### Share between computers
 

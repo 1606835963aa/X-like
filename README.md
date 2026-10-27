@@ -5,7 +5,7 @@
   <h1>拾藏 · Shizang</h1>
   <p><strong>收藏过的，随时找得到。</strong></p>
   <p>管理 X / Twitter 收藏与点赞的个人资料库。<br />电脑版默认保存到本机，无需 NAS。需要时，再连接共享资料库。</p>
-  <p><a href="#功能一览">功能一览</a> · <a href="#快速开始">快速开始</a> · <a href="docs/共享资料库.md">可选共享</a> · <a href="docs/开发.md">开发与构建</a></p>
+  <p><a href="#下载">下载安装</a> · <a href="#功能一览">功能一览</a> · <a href="#快速开始">快速开始</a> · <a href="docs/共享资料库.md">可选共享</a> · <a href="docs/开发.md">开发与构建</a></p>
   <p><code>macOS</code> <code>Windows</code> <code>可选共享资料库</code></p>
 </div>
 
@@ -55,21 +55,20 @@
 
 截图使用独立演示资料。
 
+## 下载
+
+当前版本：[**拾藏 0.1.1**](https://github.com/1606835963aa/X-like/releases/tag/v0.1.1)。
+
+| 系统 | 下载 | 安装方式 |
+|---|---|---|
+| macOS 13+ · Apple Silicon（M 系列芯片） | [Mac 安装包 · ZIP](https://github.com/1606835963aa/X-like/releases/download/v0.1.1/Shizang-0.1.1-macOS-arm64.zip) | 解压后将「拾藏.app」拖入「应用程序」 |
+| Windows · x64（64 位） | [Windows 安装包 · EXE](https://github.com/1606835963aa/X-like/releases/download/v0.1.1/Shizang-0.1.1-Windows-x64.exe) | 运行安装包，按向导完成安装 |
+
+安装包内置运行环境，无需安装 Node.js、Docker 或配置 NAS。发布页提供两个安装包的 [SHA-256 校验值](https://github.com/1606835963aa/X-like/releases/download/v0.1.1/SHA256SUMS-0.1.1.txt)。
+
 ## 快速开始
 
-### 在电脑上运行
-
-从源码运行需要 **Node.js 24.22.0 或更新的 24.x** 和 Git。桌面安装包内置运行环境。
-
-从源码首次启动或打包时会下载 Electron 运行时。
-
-```sh
-git clone https://github.com/1606835963aa/X-like.git
-cd X-like
-npm ci --cache ./tmp/npm-cache
-npm run build
-npm start
-```
+### 在电脑上使用
 
 1. 打开拾藏，默认使用这台电脑的本机资料库。
 2. 点击“连接我的 X 账号”，在软件打开的 X 官方页面登录。
@@ -79,6 +78,20 @@ npm start
 打开软件时自动同步默认关闭，可以在设置中主动开启。遇到限流、登录失效或账号验证时，同步会停止；限流等待时间会保留到重启后，到期后可手动同步。
 
 在“设置 → 资料库”中可一键切换本机和已连接的远程资料库。远程地址与连接凭证加密保留，切回本机后不用重新输入，重启会恢复上次的选择。
+
+### 从源码运行
+
+需要 **Node.js 24.22.0 或更新的 24.x** 和 Git。首次启动或打包时会下载 Electron 运行时。
+
+```sh
+git clone https://github.com/1606835963aa/X-like.git
+cd X-like
+npm ci --cache ./tmp/npm-cache
+npm run build
+npm start
+```
+
+自行构建安装包时，输出位于 `release/`，见 [开发与构建](docs/开发.md)。
 
 ### 多台电脑共用资料
 
@@ -101,7 +114,6 @@ npm run server
 也可以将资料库服务部署到 NAS 或服务器，让它持续运行。Docker 与 ARM64 离线部署见 [NAS 部署](docs/NAS部署.md)。
 
 本机资料与远程资料相互独立，切换不会删除或自动搬移已有资料。需要迁移时，可以先导出 JSON，再切换到共享资料库导入。
-安装包由源码构建，输出到 `release/`。各平台的构建方法见 [开发与构建](docs/开发.md)。
 
 ## 默认本机保存，远程存储可选
 
