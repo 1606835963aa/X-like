@@ -1,7 +1,7 @@
 import { app, session } from 'electron';
 import http from 'node:http';
 import assert from 'node:assert/strict';
-import { mkdirSync, readdirSync } from 'node:fs';
+import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { Collector } from '../src/desktop/collector';
 import { readXResponse } from '../src/desktop/sync-policy';
@@ -18,6 +18,8 @@ const page = (id: string, cursor?: string) => ({ data: { timeline: { instruction
 let exitCode = 0;
 void app.whenReady().then(async () => {
   mkdirSync(join(work, 'library'), { recursive: true });
+  writeFileSync(join(work,'connection.log'),'legacy service http://legacy-nas.example:5368\n');
+  writeFileSync(join(work,'connection.previous.log'),'legacy PROXY legacy-proxy.example:7890\n');
   const service = await startService({ dataDir: join(work, 'library') });
   const connection = { url: `http://127.0.0.1:${service.port}`, token: service.createDevice('同步逻辑测试') };
   try {
@@ -115,6 +117,14 @@ void app.whenReady().then(async () => {
         console.log('PASS 原生网络手动保存：只下载所选视频，流式上传成功，不保存图片');
       }finally{session.defaultSession.protocol.unhandle('https');}
     }
-    console.log('10 项采集器场景检查通过；仅使用模拟 X 响应和本机测试资料库。');
+    {
+      const log=readFileSync(join(work,'connection.log'),'utf8');
+      const previous=readFileSync(join(work,'connection.previous.log'),'utf8');
+      for(const secret of [connection.url,connection.token,'nas.invalid','legacy-nas.example','legacy-proxy.example'])assert.ok(!(log+previous).includes(secret));
+      assert.ok(!log.includes('"origin"'));
+      assert.ok(log.includes('EHOSTUNREACH')&&log.includes('检查资料库连接')&&log.includes('"status":200'));
+      console.log('PASS 连接诊断：真实采集器日志保留阶段和状态，不记录资料库地址或设备凭证');
+    }
+    console.log('11 项采集器场景检查通过；仅使用模拟 X 响应和本机测试资料库。');
   } finally { await service.close(); }
 }).catch(error => { console.error(error); exitCode = 1; }).finally(() => app.exit(exitCode));

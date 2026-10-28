@@ -3,7 +3,10 @@ import { join } from 'node:path';
 
 export function redactDiagnostic(value: string): string {
   return value.replace(/https?:\/\/[^\s"'<>]+/gi, '[地址已隐藏]')
-    .replace(/((?:authorization|cookie|set-cookie|auth_token|ct0|pairing[-_ ]?key|(?:device|access|session)[-_ ]?token|password)\s*[=:]\s*)[^\r\n]+/gi, '$1[已隐藏]')
+    .replace(/\b(PROXY|SOCKS[45]?)\s+[^;\s]+/gi, '$1 [代理地址已隐藏]')
+    .replace(/\b(HTTPS?)\s+(?=[^;\s]*:)[^;\s]+/gi, '$1 [代理地址已隐藏]')
+    .replace(/((?:authorization|cookie|set-cookie|auth_token|ct0|x-csrf-token|pairing[-_ ]?key|(?:device|access|session)[-_ ]?token|token|api[-_ ]?key|client[-_ ]?secret|password)["']?\s*[=:]\s*)[^\r\n]+/gi, '$1[已隐藏]')
+    .replace(/\bBearer\s+[^\s,"';]+/gi, 'Bearer [已隐藏]')
     .replace(/(?:gh[pousr]_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{30,})/g, '[凭证已隐藏]')
     .replace(/\b(?:\d{1,3}\.){3}\d{1,3}\b/g, '[IP 已隐藏]')
     .replace(/\/(Users|home)\/[^/\s]+/g, '/$1/[用户]').replace(/[A-Za-z]:\\Users\\[^\\\s]+/g, 'C:\\Users\\[用户]');

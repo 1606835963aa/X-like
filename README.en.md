@@ -5,7 +5,7 @@
   <h1>Shizang · 拾藏</h1>
   <p><strong>Keep what matters. Find it again.</strong></p>
   <p>A personal library for your X / Twitter bookmarks and likes.<br />Use it on your computer without a NAS. Add a shared library when you need one.</p>
-  <p><a href="#downloads">Downloads</a> · <a href="#features">Features</a> · <a href="#quick-start">Quick start</a> · <a href="docs/shared-library.en.md">Shared library</a> · <a href="#building">Building</a></p>
+  <p><a href="#downloads">Downloads</a> · <a href="#features">Features</a> · <a href="#quick-start">Quick start</a> · <a href="#feedback-and-contributing">Feedback</a> · <a href="docs/shared-library.en.md">Shared library</a> · <a href="#building">Building</a></p>
   <p><code>macOS</code> <code>Windows</code> <code>Optional shared library</code></p>
 </div>
 
@@ -57,7 +57,7 @@ Screenshots use a separate demonstration library. The application interface is c
 
 ## Downloads
 
-Current version: [**Shizang 0.1.1**](https://github.com/1606835963aa/X-like/releases/tag/v0.1.1).
+Published version: [**Shizang 0.1.1**](https://github.com/1606835963aa/X-like/releases/tag/v0.1.1).
 
 | System | Download | Install |
 |---|---|---|
@@ -65,6 +65,8 @@ Current version: [**Shizang 0.1.1**](https://github.com/1606835963aa/X-like/rele
 | Windows · x64 (64-bit) | [Windows installer · EXE](https://github.com/1606835963aa/X-like/releases/download/v0.1.1/Shizang-0.1.1-Windows-x64.exe) | Run the installer and follow the setup wizard |
 
 Both packages include their runtime. No Node.js, Docker or NAS setup is required. [SHA-256 checksums](https://github.com/1606835963aa/X-like/releases/download/v0.1.1/SHA256SUMS-0.1.1.txt) are provided for both downloads.
+
+See [installation and updates](docs/install-and-update.en.md) for first launch, replacement updates and backups. The application's Help menu (帮助) also provides documentation and feedback links.
 
 ## Quick start
 
@@ -138,6 +140,14 @@ Local desktop data lives in the `library` folder inside the system’s Shizang a
 | NAS · Linux ARM64 | Docker offline deployment and shared-library access verified |
 | Android / iOS | Outside the current development and release scope |
 
+## Feedback and contributing
+
+- [Report a bug](https://github.com/1606835963aa/X-like/issues/new?template=bug_report.yml): include version, OS, reproduction steps and relevant error excerpts.
+- [Request a feature](https://github.com/1606835963aa/X-like/issues/new?template=feature_request.yml): describe the use case and desired behavior.
+- [Security reporting](SECURITY.md): use the private-report entry or contact-request fallback.
+- [Feedback and diagnostics](docs/feedback-and-diagnostics.en.md): find logs and prepare demonstration-data examples.
+- [Contributing](CONTRIBUTING.md): scope, development checks and pull-request guidance.
+
 ## Building
 
 Desktop installers are written to `release/`:
@@ -165,10 +175,18 @@ Startup failures offer logs, retry and database recovery. Schema upgrades create
 - [Development guide, Chinese](docs/开发.md)
 - [Design guidelines, Chinese](design/DESIGN.md)
 - [Brand assets, Chinese](design/品牌.md)
-- [Report an issue](https://github.com/1606835963aa/X-like/issues)
+- [Source delivery guide, Chinese](docs/公开源码.md)
 
 The organization of the self-hosted library was informed by [Karakeep](https://github.com/karakeep-app/karakeep).
 
 ## License
 
-Licensed under the [GNU Affero General Public License v3.0](LICENSE) (`AGPL-3.0-only`).
+Project code is licensed under the [GNU Affero General Public License v3.0](LICENSE) (`AGPL-3.0-only`).
+
+## Acknowledgements
+
+![GPT, DeepSeek and Claude celebrating the completed project](docs/assets/ai-team-05-project-celebration.png)
+
+Heartfelt thanks to GPT, deepseek, and claude for their hard work in making this project possible.
+
+(Although this project was completed by GPT alone) you're still the three models I use most, and I love you all～♡

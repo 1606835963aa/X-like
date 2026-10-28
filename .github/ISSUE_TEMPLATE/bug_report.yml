@@ -1,0 +1,73 @@
+name: 功能错误 / Bug report
+description: 报告安装、资料库、同步或播放问题。
+title: "[Bug] "
+body:
+  - type: markdown
+    attributes:
+      value: 安全问题请先阅读项目的安全政策。此表单使用演示资料复现；日志只保留相关片段。
+  - type: input
+    id: version
+    attributes:
+      label: 软件版本 / App version
+      description: 在设置页查看，例如 0.1.2。
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: 系统 / Operating system
+      options:
+        - macOS · Apple Silicon
+        - Windows 11 · x64
+        - Windows 10 · x64
+        - 其他 / Other
+    validations:
+      required: true
+  - type: input
+    id: os_version
+    attributes:
+      label: 系统版本 / OS version
+      description: 填写系统版本；显示或输入问题请同时说明缩放比例和输入法。
+    validations:
+      required: true
+  - type: dropdown
+    id: library
+    attributes:
+      label: 资料库模式 / Library mode
+      options:
+        - 默认本机 / Local
+        - 远程共享 / Remote shared
+        - 尚未进入软件 / Cannot start
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: 复现步骤 / Steps to reproduce
+      description: 从哪一页开始、执行了什么操作、在哪一步出错；使用可分享的演示资料。
+    validations:
+      required: true
+  - type: textarea
+    id: result
+    attributes:
+      label: 实际结果与预期结果 / Actual and expected results
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: 错误片段 / Error excerpt
+      description: 仅提供已检查的相关片段。完整资料库、会话目录、Cookie、连接码和设备凭证不作为附件。
+      render: text
+  - type: textarea
+    id: screenshot
+    attributes:
+      label: 相关截图 / Screenshot
+      description: 仅保留相关区域，遮住账号、私人收藏和地址后再上传。
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: 内容检查 / Content check
+      options:
+        - label: 我确认反馈内容不含真实凭证、私人收藏或个人服务地址。 / No credentials, private posts or personal service addresses are included.
+          required: true

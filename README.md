@@ -5,7 +5,7 @@
   <h1>拾藏 · Shizang</h1>
   <p><strong>收藏过的，随时找得到。</strong></p>
   <p>管理 X / Twitter 收藏与点赞的个人资料库。<br />电脑版默认保存到本机，无需 NAS。需要时，再连接共享资料库。</p>
-  <p><a href="#下载">下载安装</a> · <a href="#功能一览">功能一览</a> · <a href="#快速开始">快速开始</a> · <a href="docs/共享资料库.md">可选共享</a> · <a href="docs/开发.md">开发与构建</a></p>
+  <p><a href="#下载">下载安装</a> · <a href="#功能一览">功能一览</a> · <a href="#快速开始">快速开始</a> · <a href="#反馈与参与">反馈与参与</a> · <a href="docs/共享资料库.md">可选共享</a> · <a href="docs/开发.md">开发与构建</a></p>
   <p><code>macOS</code> <code>Windows</code> <code>可选共享资料库</code></p>
 </div>
 
@@ -57,7 +57,7 @@
 
 ## 下载
 
-当前版本：[**拾藏 0.1.1**](https://github.com/1606835963aa/X-like/releases/tag/v0.1.1)。
+已发布版本：[**拾藏 0.1.1**](https://github.com/1606835963aa/X-like/releases/tag/v0.1.1)。
 
 | 系统 | 下载 | 安装方式 |
 |---|---|---|
@@ -65,6 +65,8 @@
 | Windows · x64（64 位） | [Windows 安装包 · EXE](https://github.com/1606835963aa/X-like/releases/download/v0.1.1/Shizang-0.1.1-Windows-x64.exe) | 运行安装包，按向导完成安装 |
 
 安装包内置运行环境，无需安装 Node.js、Docker 或配置 NAS。发布页提供两个安装包的 [SHA-256 校验值](https://github.com/1606835963aa/X-like/releases/download/v0.1.1/SHA256SUMS-0.1.1.txt)。
+
+首次打开、覆盖更新和保留资料的方法见 [安装与更新](docs/安装与更新.md)。软件“帮助”菜单也提供文档和反馈入口。
 
 ## 快速开始
 
@@ -140,7 +142,15 @@ JSON 备份包含正文、来源、两类标签、备注与整理状态。完整
 | NAS · Linux ARM64 | Docker 离线部署与资料共享已验证 |
 | Android / iOS | 不在当前开发和发行范围 |
 
-## 开发与参与
+## 反馈与参与
+
+- [报告功能错误](https://github.com/1606835963aa/X-like/issues/new?template=bug_report.yml)：提供版本、系统、复现步骤和相关错误片段。
+- [提出功能建议](https://github.com/1606835963aa/X-like/issues/new?template=feature_request.yml)：描述使用场景和希望完成的操作。
+- [安全反馈](SECURITY.md)：通过私密报告入口或联系请求提交。
+- [反馈与诊断](docs/反馈与诊断.md)：查找日志、整理演示资料和复现信息。
+- [贡献指南](CONTRIBUTING.md)：开发范围、测试和提交说明。
+
+## 开发与构建
 
 前端使用 React，桌面使用 Electron，资料库服务使用 Node.js 内置 SQLite。设备通过 HTTP 接口访问资料库。
 
@@ -151,10 +161,18 @@ Mac 正式签名与 Windows 发布者签名暂缓，当前发行包包含项目�
 - [NAS 部署](docs/NAS部署.md)
 - [界面规范](design/DESIGN.md)
 - [Logo 与图标](design/品牌.md)
-- [问题反馈](https://github.com/1606835963aa/X-like/issues)
+- [公开源码交付](docs/公开源码.md)
 
 资料库的组织方式参考了 [Karakeep](https://github.com/karakeep-app/karakeep)。
 
 ## 许可
 
-本项目采用 [GNU Affero General Public License v3.0](LICENSE)（`AGPL-3.0-only`）。
+项目代码采用 [GNU Affero General Public License v3.0](LICENSE)（`AGPL-3.0-only`）。
+
+## 致谢
+
+![GPT、DeepSeek 和 Claude 的项目完成庆祝合照](docs/assets/ai-team-05-project-celebration.png)
+
+由衷感谢GPT、deepseek、claude的辛勤付出，这个项目才得以建成。
+
+（虽然这个项目是GPT独立完成的）但作为我最常用的三个模型，还是爱你们～♡

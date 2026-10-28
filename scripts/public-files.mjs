@@ -2,10 +2,43 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 
+const directories = /^(?:src|scripts|tests|docs|design|public|resources|android|ios|\.github)\//;
+const files = /^(?:(?:README|CONTRIBUTING|SECURITY)(?:\.[\w-]+)?\.md|LICENSE|index\.html|package(?:-lock)?\.json|tsconfig\.json|vite\.config\.ts|capacitor\.config\.ts|Dockerfile|compose(?:\.offline)?\.yaml|\.dockerignore|\.gitignore|\.gitattributes|\.node-version|\.env\.example)$/;
+
+export function hasProjectHistory(root = process.cwd()) {
+  try {
+    const top = execFileSync('git', ['rev-parse', '--show-toplevel'], { cwd: root, encoding: 'utf8', stdio: ['ignore','pipe','ignore'] }).trim();
+    const canonical = name => {
+      const resolved = fs.realpathSync(name);
+      return process.platform === 'win32' ? resolved.toLowerCase() : resolved;
+    };
+    return canonical(top) === canonical(root);
+  } catch {
+    if (fs.existsSync(path.join(root, '.git'))) throw new Error('无法读取当前项目的 Git 历史，请检查 Git 和仓库配置');
+    return false;
+  }
+}
+
+function sourceFiles(root) {
+  const paths = [];
+  const ignored = /(?:^|\/)(?:\.git|node_modules|\.gradle|Pods)(?:\/|$)|^(?:tmp|private|data|release|android\/(?:build|app\/build)|ios\/App\/build)(?:\/|$)/;
+  function visit(directory, prefix = '') {
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+      if (entry.name === '.DS_Store' || entry.name.startsWith('._') || entry.name === '__MACOSX' || entry.name === '.AppleDouble') continue;
+      const name = prefix + entry.name;
+      if (ignored.test(name) || (!directories.test(name + '/') && !files.test(name))) continue;
+      if (entry.isDirectory()) visit(path.join(directory, entry.name), name + '/');
+      else paths.push(name);
+    }
+  }
+  visit(root);
+  return paths;
+}
+
 export function publicFiles(root = process.cwd()) {
-  const paths = execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard', '-z'], { cwd: root, encoding: 'utf8' }).split('\0').filter(Boolean);
-  const directories = /^(?:src|scripts|tests|docs|design|public|resources|android|ios|\.github)\//;
-  const files = /^(?:README(?:\.[\w-]+)?\.md|LICENSE|index\.html|package(?:-lock)?\.json|tsconfig\.json|vite\.config\.ts|capacitor\.config\.ts|Dockerfile|compose(?:\.offline)?\.yaml|\.dockerignore|\.gitignore|\.gitattributes|\.node-version|\.env\.example)$/;
+  const paths = hasProjectHistory(root)
+    ? execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard', '-z'], { cwd: root, encoding: 'utf8' }).split('\0').filter(Boolean)
+    : sourceFiles(root);
   return [...new Set(paths)].filter(name => (directories.test(name) || files.test(name)) && fs.existsSync(path.join(root, name))).sort();
 }
 

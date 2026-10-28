@@ -1,0 +1,14 @@
+name: 请求私密反馈渠道 / Private contact request
+description: 私密漏洞报告入口不可用时，请维护者提供接收渠道。
+title: "[Security contact] 请求私密反馈渠道"
+body:
+  - type: markdown
+    attributes:
+      value: 此表单只请求接收渠道。漏洞细节在维护者安排的私密渠道中提交。 / Request a private channel here; share vulnerability details only through that channel.
+  - type: checkboxes
+    id: request
+    attributes:
+      label: 联系请求 / Contact request
+      options:
+        - label: 我需要私密反馈渠道，请维护者提供可用入口。 / Please provide a private reporting channel.
+          required: true

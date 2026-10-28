@@ -1,0 +1,29 @@
+name: 功能建议 / Feature request
+description: 描述希望改善的使用场景。
+title: "[Feature] "
+body:
+  - type: textarea
+    id: use_case
+    attributes:
+      label: 使用场景 / Use case
+      description: 目前想完成什么操作，遇到了什么困难？
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: 希望的行为 / Desired behavior
+      description: 描述期望的操作过程和结果。
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: 相关平台 / Platform
+      options:
+        - Mac 与 Windows / Both desktop platforms
+        - Mac
+        - Windows
+        - 共享资料库服务 / Shared-library service
+    validations:
+      required: true

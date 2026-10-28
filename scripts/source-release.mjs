@@ -7,7 +7,7 @@ import { prepareLegal } from './legal.mjs';
 const root = process.cwd(), { version } = JSON.parse(fs.readFileSync('package.json', 'utf8'));
 const result = checkPublicFiles();
 if (result.issues.length) throw new Error('源码公开检查未通过，请先运行 npm run release:check');
-for (const required of ['index.html','package.json','package-lock.json','tsconfig.json','vite.config.ts','src/ui/main.tsx','src/desktop/main.ts','src/server/entry.ts','LICENSE']) {
+for (const required of ['index.html','package.json','package-lock.json','tsconfig.json','vite.config.ts','src/ui/main.tsx','src/desktop/main.ts','src/server/entry.ts','LICENSE','README.md','README.en.md','SECURITY.md','CONTRIBUTING.md','.github/ISSUE_TEMPLATE/bug_report.yml','.github/ISSUE_TEMPLATE/feature_request.yml','docs/安装与更新.md','docs/反馈与诊断.md']) {
   if (!result.files.includes(required)) throw new Error(`源码包缺少必要文件：${required}`);
 }
 const temporary = path.join(root, 'tmp');

@@ -9,8 +9,22 @@ test('资料库网络错误保留连接阶段和底层错误码，不重试、�
   const cause=Object.assign(new Error('unreachable'),{code:'EHOSTUNREACH'});
   const request=createLibraryRequest(connection,{fetcher:async()=>{requests++;throw new TypeError('fetch failed',{cause:new AggregateError([cause])});},log:event=>events.push(event)});
   await assert.rejects(request('/api/jobs/123/batch',{posts:[{text:'private-post-body'}]}),/无法连接资料库.*EHOSTUNREACH/);
-  assert.equal(requests,1);assert.deepEqual(events,[{origin:connection.url,action:'保存新增资料',status:undefined,code:'EHOSTUNREACH'}]);
+  assert.equal(requests,1);assert.deepEqual(events,[{action:'保存新增资料',status:undefined,code:'EHOSTUNREACH'}]);
+  assert.equal(JSON.stringify(events).includes(connection.url),false);
   assert.equal(JSON.stringify(events).includes(connection.token),false);assert.equal(JSON.stringify(events).includes('private-post-body'),false);
+});
+
+test('成功请求的诊断保留操作和状态，不暴露资料库地址或凭证',async()=>{
+  const events:LibraryRequestEvent[]=[];
+  const privateConnection={url:'https://personal-library.example:8443',token:'test-private-device-token'};
+  const request=createLibraryRequest(privateConnection,{fetcher:async(url,options)=>{
+    assert.equal(url,privateConnection.url+'/api/stats');
+    assert.equal((options!.headers as Record<string,string>).Authorization,'Bearer '+privateConnection.token);
+    return Response.json({ok:true});
+  },log:event=>events.push(event)});
+  await request('/api/stats');
+  assert.deepEqual(events,[{action:'检查资料库连接',status:200}]);
+  assert.ok(!JSON.stringify(events).includes('personal-library'));
 });
 
 test('资料库认证与服务错误明确归属资料库，不要求重新登录 X',async()=>{

@@ -1,5 +1,4 @@
 import { app, BrowserWindow, dialog, net, session, type Session } from 'electron';
-import { appendFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseTimeline } from '../shared/x-parser';
 import type { Account, Connection, Source, SyncState } from '../shared/types';
@@ -9,6 +8,7 @@ import { syncTimeline } from './sync-timeline';
 import { SyncCooldown } from './sync-cooldown';
 import { createLibraryRequest, type FetchRequest } from './library-client';
 import { loginNavigation } from './login-policy';
+import { writeConnectionDiagnostic } from '../shared/connection-diagnostics';
 type Template = { url: string; method: string; headers: Record<string,string>; postData?: string };
 type Packet = { template: Template; json: any };
 type Pending = { resolve:(packet:Packet)=>void; reject:(error:Error)=>void };
@@ -30,6 +30,7 @@ export class Collector {
     this.request=options.fetcher??((url,init)=>net.fetch(url,init));
     this.session=session.fromPartition('persist:shizang-x');
     this.cooldown=new SyncCooldown(join(app.getPath('userData'),'sync-cooldown.json'));
+    this.log('Connection diagnostics ready');
   }
   async status(){
     const cookies=await this.session.cookies.get({url:'https://x.com'});
@@ -45,7 +46,7 @@ export class Collector {
     for(const pending of this.waiting.values())pending.reject(error);
   }
   private check(){if(this.failure)throw this.failure;}
-  private log(message:string){try{appendFileSync(join(app.getPath('userData'),'connection.log'),new Date().toISOString()+' '+message+'\n',{mode:0o600});}catch{}}
+  private log(message:string){writeConnectionDiagnostic(app.getPath('userData'),message);}
   private configureLoginWindow(w: BrowserWindow) {
     const guard = (event: Electron.Event, url: string) => {
       const decision = loginNavigation(url);

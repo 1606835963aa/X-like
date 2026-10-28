@@ -1,7 +1,7 @@
 import type { Connection } from '../shared/types';
 
 export type FetchRequest = (url:string, options?:RequestInit) => Promise<Response>;
-export type LibraryRequestEvent = { origin:string; action:string; status?:number; code?:string };
+export type LibraryRequestEvent = { action:string; status?:number; code?:string };
 export class LibraryRequestError extends Error {}
 
 export function networkErrorCode(error:unknown):string {
@@ -44,9 +44,9 @@ export function createLibraryRequest(connection:Connection,options:{fetcher?:Fet
         if(status===401)throw new LibraryRequestError('资料库连接凭证已失效，请重新连接资料库后同步。');
         throw new LibraryRequestError(`资料库${action}失败（HTTP ${status}），同步已停止。`);
       }
-      options.log?.({origin,action,status});return json;
+      options.log?.({action,status});return json;
     }catch(error){
-      const code=networkErrorCode(error);options.log?.({origin,action,status,code});
+      const code=networkErrorCode(error);options.log?.({action,status,code});
       if(error instanceof LibraryRequestError)throw error;
       throw new LibraryRequestError(code==='TIMEOUT'?'连接资料库超时，同步已停止。':`无法连接资料库（${code}），同步已停止。`,{cause:error});
     }

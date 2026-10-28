@@ -44,3 +44,24 @@ test('服务健康接口与桌面使用相同的应用版本',async()=>{
   try {assert.equal((await(await fetch(`http://127.0.0.1:${service.port}/api/health`)).json()).version,APP_VERSION);}
   finally {await service.close();rmSync(directory,{recursive:true,force:true});}
 });
+
+test('无 Git 历史的源码目录独立检查反馈文档，不借用上级仓库或遗漏敏感文件',async()=>{
+  const {checkPublicFiles,hasProjectHistory}=await import(new URL('../scripts/public-files.mjs',import.meta.url).href);
+  const directory=mkdtempSync(resolve('tmp/source-inventory-'));
+  try {
+    mkdirSync(join(directory,'src'));mkdirSync(join(directory,'node_modules'));
+    writeFileSync(join(directory,'SECURITY.md'),'安全反馈');
+    writeFileSync(join(directory,'CONTRIBUTING.md'),'贡献说明');
+    writeFileSync(join(directory,'src','config.ts'),'const url="http://'+['10','2','3','4'].join('.')+'";');
+    writeFileSync(join(directory,'src','.DS_Store'),'private Finder metadata');
+    writeFileSync(join(directory,'src','._config.ts'),'private AppleDouble metadata');
+    writeFileSync(join(directory,'node_modules','private.ts'),'token='+('ghp_'+'a'.repeat(40)));
+    assert.equal(hasProjectHistory(directory),false);
+    const result=checkPublicFiles(directory);
+    assert.deepEqual(result.files,['CONTRIBUTING.md','SECURITY.md','src/config.ts']);
+    assert.equal(result.issues.length,1);
+    assert.equal(result.issues[0].file,'src/config.ts');
+    writeFileSync(join(directory,'.git'),'invalid repository metadata');
+    assert.throws(()=>checkPublicFiles(directory),/无法读取.*Git 历史/);
+  } finally {rmSync(directory,{recursive:true,force:true});}
+});

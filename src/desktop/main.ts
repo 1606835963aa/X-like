@@ -124,7 +124,13 @@ if(singleInstance)void app.whenReady().then(async()=>{
       {type:'separator'},
       {label:'重启并恢复本机资料库…',click:()=>{if(collector.running)dialog.showErrorBox('任务正在进行', '请先完成或停止同步和视频保存，再恢复资料库。');else restart(true);}}
     ]},
-    {role:'windowMenu',label:'窗口'}
+    {role:'windowMenu',label:'窗口'},
+    {role:'help',label:'帮助',submenu:[
+      {label:'安装、更新与备份',click:()=>{void shell.openExternal(encodeURI('https://github.com/1606835963aa/X-like/blob/main/docs/安装与更新.md'));}},
+      {label:'反馈问题',click:()=>{void shell.openExternal('https://github.com/1606835963aa/X-like/issues/new?template=bug_report.yml');}},
+      {label:'功能建议',click:()=>{void shell.openExternal('https://github.com/1606835963aa/X-like/issues/new?template=feature_request.yml');}},
+      {label:'安全反馈',click:()=>{void shell.openExternal('https://github.com/1606835963aa/X-like/security/policy');}}
+    ]}
   ]));
   app.on('second-instance',()=>{main?.show();main?.focus();});
   await createWindow();
