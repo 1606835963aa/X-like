@@ -57,14 +57,14 @@
 
 ## 下载
 
-已发布版本：[**拾藏 0.1.1**](https://github.com/1606835963aa/X-like/releases/tag/v0.1.1)。
+已发布版本：[**拾藏 0.1.2**](https://github.com/1606835963aa/X-like/releases/tag/v0.1.2)。
 
 | 系统 | 下载 | 安装方式 |
 |---|---|---|
-| macOS 13+ · Apple Silicon（M 系列芯片） | [Mac 安装包 · ZIP](https://github.com/1606835963aa/X-like/releases/download/v0.1.1/Shizang-0.1.1-macOS-arm64.zip) | 解压后将「拾藏.app」拖入「应用程序」 |
-| Windows · x64（64 位） | [Windows 安装包 · EXE](https://github.com/1606835963aa/X-like/releases/download/v0.1.1/Shizang-0.1.1-Windows-x64.exe) | 运行安装包，按向导完成安装 |
+| macOS 13+ · Apple Silicon（M 系列芯片） | [Mac 安装包 · ZIP](https://github.com/1606835963aa/X-like/releases/download/v0.1.2/Shizang-0.1.2-macOS-arm64.zip) | 解压后将「拾藏.app」拖入「应用程序」 |
+| Windows · x64（64 位） | [Windows 安装包 · EXE](https://github.com/1606835963aa/X-like/releases/download/v0.1.2/Shizang-0.1.2-Windows-x64.exe) | 运行安装包，按向导完成安装 |
 
-安装包内置运行环境，无需安装 Node.js、Docker 或配置 NAS。发布页提供两个安装包的 [SHA-256 校验值](https://github.com/1606835963aa/X-like/releases/download/v0.1.1/SHA256SUMS-0.1.1.txt)。
+安装包内置运行环境，无需安装 Node.js、Docker 或配置 NAS。同版本的[源码包](https://github.com/1606835963aa/X-like/releases/download/v0.1.2/Shizang-0.1.2-source.tar.gz)与安装包共用一份 [SHA-256 校验文件](https://github.com/1606835963aa/X-like/releases/download/v0.1.2/SHA256SUMS-0.1.2.txt)。
 
 首次打开、覆盖更新和保留资料的方法见 [安装与更新](docs/安装与更新.md)。软件“帮助”菜单也提供文档和反馈入口。
 

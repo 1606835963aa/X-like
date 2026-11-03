@@ -19,6 +19,8 @@ jobs:
       electron_config_cache: ${{ github.workspace }}/tmp/electron-cache
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v7
         with:
           node-version-file: .node-version
@@ -28,6 +30,8 @@ jobs:
       - run: npm test
       - run: npm run build
       - run: npm run release:check
+      - run: npm run release:check -- --history
+        if: matrix.os == 'ubuntu-24.04'
   collector:
     runs-on: ubuntu-24.04
     timeout-minutes: 10

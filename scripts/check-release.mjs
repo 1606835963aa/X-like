@@ -25,6 +25,6 @@ if (process.argv.includes('--history') && hasProjectHistory()) {
       for (const issue of found) { count++; console.error(`${commit.slice(0,7)} ${issue.file}:${issue.line} ${issue.reason}`); }
     }
   }
-  check(count === 0, 'Git 历史检查；未通过时使用不含历史的源码包，不直接公开现有仓库');
+  check(count === 0, 'Git 历史中的个人配置与凭证检查；未通过时不得公开这些提交');
 }
 process.exitCode = failed ? 1 : 0;

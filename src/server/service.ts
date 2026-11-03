@@ -31,6 +31,7 @@ export async function startService(options: Options) {
   function send(res: ServerResponse, status: number, value: unknown) { res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'}); res.end(JSON.stringify(value)); }
   async function body(req: IncomingMessage, limit = 50 * 1024 * 1024) { const chunks: Buffer[]=[];let n=0; for await (const c of req){ n+=c.length;if(n>limit)throw new Error('文件超过 50 MB，请分批导入');chunks.push(c); } return JSON.parse(Buffer.concat(chunks).toString('utf8')||'{}'); }
   async function request(req: IncomingMessage,res: ServerResponse) {
+    try {
     res.setHeader('X-Content-Type-Options','nosniff');
     res.setHeader('Referrer-Policy','no-referrer');
     const origin = req.headers.origin;
@@ -40,8 +41,10 @@ export async function startService(options: Options) {
       res.setHeader('Access-Control-Max-Age','600');
     }
     if(req.method==='OPTIONS'){res.writeHead(204);res.end();return;}
-    const url = new URL(req.url??'/', 'http://localhost'); const path = url.pathname;
-    try {
+    let url: URL;
+    try { url = new URL(req.url??'/', 'http://localhost'); }
+    catch { send(res,400,{error:'请求地址格式不正确'}); return; }
+    const path = url.pathname;
       if(path==='/api/health'){send(res,200,{ok:true,app:'shizang',version:APP_VERSION,name:options.name??'拾藏资料库'});return;}
       if(path==='/api/pair' && req.method==='POST'){
         const ip=req.socket.remoteAddress??'unknown';const f=failures.get(ip);
@@ -161,9 +164,9 @@ export async function startService(options: Options) {
         }
       }
       send(res,404,{error:'界面文件尚未构建'});
-    }catch(e){if(!res.headersSent)send(res,400,{error:e instanceof Error?e.message:'操作失败'});else res.end();}
+    }catch(e){if(res.destroyed||res.writableEnded)return;if(!res.headersSent)send(res,400,{error:e instanceof Error?e.message:'操作失败'});else res.end();}
   }
-  server=http.createServer((req,res)=>{void request(req,res);});
+  server=http.createServer((req,res)=>{void request(req,res).catch(()=>{res.destroy();});});
   await new Promise<void>((r,j)=>{server.once('error',j);server.listen(options.port??0,options.host??'127.0.0.1',()=>r());});
   const address=server.address() as import('node:net').AddressInfo;
   let closing: Promise<void> | undefined;

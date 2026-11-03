@@ -57,14 +57,14 @@ Screenshots use a separate demonstration library. The application interface is c
 
 ## Downloads
 
-Published version: [**Shizang 0.1.1**](https://github.com/1606835963aa/X-like/releases/tag/v0.1.1).
+Published version: [**Shizang 0.1.2**](https://github.com/1606835963aa/X-like/releases/tag/v0.1.2).
 
 | System | Download | Install |
 |---|---|---|
-| macOS 13+ · Apple Silicon (M-series chips) | [Mac package · ZIP](https://github.com/1606835963aa/X-like/releases/download/v0.1.1/Shizang-0.1.1-macOS-arm64.zip) | Extract the ZIP and move 拾藏.app to Applications |
-| Windows · x64 (64-bit) | [Windows installer · EXE](https://github.com/1606835963aa/X-like/releases/download/v0.1.1/Shizang-0.1.1-Windows-x64.exe) | Run the installer and follow the setup wizard |
+| macOS 13+ · Apple Silicon (M-series chips) | [Mac package · ZIP](https://github.com/1606835963aa/X-like/releases/download/v0.1.2/Shizang-0.1.2-macOS-arm64.zip) | Extract the ZIP and move 拾藏.app to Applications |
+| Windows · x64 (64-bit) | [Windows installer · EXE](https://github.com/1606835963aa/X-like/releases/download/v0.1.2/Shizang-0.1.2-Windows-x64.exe) | Run the installer and follow the setup wizard |
 
-Both packages include their runtime. No Node.js, Docker or NAS setup is required. [SHA-256 checksums](https://github.com/1606835963aa/X-like/releases/download/v0.1.1/SHA256SUMS-0.1.1.txt) are provided for both downloads.
+Both installers include their runtime. No Node.js, Docker or NAS setup is required. The matching [source archive](https://github.com/1606835963aa/X-like/releases/download/v0.1.2/Shizang-0.1.2-source.tar.gz) and installers share one [SHA-256 checksum file](https://github.com/1606835963aa/X-like/releases/download/v0.1.2/SHA256SUMS-0.1.2.txt).
 
 See [installation and updates](docs/install-and-update.en.md) for first launch, replacement updates and backups. The application's Help menu (帮助) also provides documentation and feedback links.
 
