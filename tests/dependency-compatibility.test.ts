@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { closeSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { join, normalize, resolve, sep } from 'node:path';
 
 const require = createRequire(import.meta.url);
 
@@ -51,8 +51,9 @@ test('构建文件列表和临时文件的回调、Promise 与同步清理保持
     writeFileSync(join(directory,'nested','深层.txt'),'nested');
     const {FileList}=require('filelist');
     const files=new FileList();
-    files.include(join(directory,'*.txt')).exclude(join(directory,'忽略.txt'));
-    assert.deepEqual(files.toArray(),[join(directory,'保留.txt')]);
+    const globPath=(value:string)=>value.split(sep).join('/');
+    files.include(globPath(join(directory,'*.txt'))).exclude(globPath(join(directory,'忽略.txt')));
+    assert.deepEqual(files.toArray().map((value:string)=>normalize(value)),[join(directory,'保留.txt')]);
     temp.track();
     const file=temp.openSync({dir:directory,prefix:'cleanup-'});
     closeSync(file.fd);
