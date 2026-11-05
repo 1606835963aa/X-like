@@ -29,7 +29,9 @@
     "release:source": "node scripts/source-release.mjs",
     "release:checksums": "node scripts/release-checksums.mjs",
     "mobile:sync": "npm run build && cap sync",
-    "postinstall": "node scripts/prepare-build-tools.mjs"
+    "postinstall": "node scripts/prepare-build-tools.mjs",
+    "prepare": "node scripts/install-git-hooks.mjs",
+    "push:check": "node scripts/check-push.mjs --current"
   },
   "dependencies": {
     "@capacitor/core": "8.5.3",

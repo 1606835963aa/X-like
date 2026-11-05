@@ -16,12 +16,12 @@ check(issues.length === 0, '当前公开源码的个人配置与凭证检查');
 for (const issue of issues) console.error(`${issue.file}:${issue.line} ${issue.reason}`);
 if (process.argv.includes('--history') && !hasProjectHistory()) check(true, '源码目录不包含独立 Git 历史');
 if (process.argv.includes('--history') && hasProjectHistory()) {
-  const commits = execFileSync('git',['rev-list','--all'],{encoding:'utf8'}).trim().split('\n').filter(Boolean);
+  const commits = execFileSync('git',['rev-list','--branches','--tags'],{encoding:'utf8'}).trim().split('\n').filter(Boolean);
   let count = 0;
   for (const commit of commits) {
     const names = execFileSync('git',['ls-tree','-r','--name-only',commit],{encoding:'utf8'}).split('\n').filter(name => /\.(?:md|ts|tsx|mjs|json|yaml|yml)$/.test(name) && !name.endsWith('package-lock.json'));
     for (const name of names) {
-      const found = scanPublicText(name,execFileSync('git',['show',`${commit}:${name}`],{encoding:'utf8',maxBuffer:8*1024*1024}));
+      const found = scanPublicText(name,execFileSync('git',['show',`${commit}:${name}`],{encoding:'utf8',maxBuffer:8*1024*1024}),{historical:true});
       for (const issue of found) { count++; console.error(`${commit.slice(0,7)} ${issue.file}:${issue.line} ${issue.reason}`); }
     }
   }

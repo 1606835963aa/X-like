@@ -22,6 +22,8 @@ npm audit --audit-level=moderate
 
 桌面同步、网络、会话或视频保存相关改动还需运行 `npm run test:collector`。它使用模拟 X 响应和独立测试资料，无需个人账号。
 
+`npm ci` 在 Git 工作副本中自动安装推送检查。`git push` 会检查待上传的每个新提交，拦截非示例内网地址、私人资料与疑似凭证；测试文件也参与检查。文档和测试统一使用 `192.168.1.100` 作为局域网演示地址，个人连接配置放在 Git 忽略的目录。已有自定义 Git hooks 时，在现有 `pre-push` 中调用 `node scripts/check-push.mjs "$@"`。GitHub Actions 对新增提交执行相同检查。
+
 当前范围为 Mac Apple Silicon、Windows x64 和可选共享资料库。Android 与 iOS 工程保留，当前不扩展手机功能。
 
 ## 代码与文档
@@ -42,5 +44,7 @@ npm audit --audit-level=moderate
 Use the [bug form](https://github.com/1606835963aa/X-like/issues/new?template=bug_report.yml) or [feature form](https://github.com/1606835963aa/X-like/issues/new?template=feature_request.yml). Report security issues through [SECURITY.md](SECURITY.md).
 
 Use the Node.js version in `.node-version`, run `npm ci`, tests, build, release checks and the dependency audit shown above. Run `npm run test:collector` for desktop sync, session, network or media changes. Use demonstration data; keep temporary files in `tmp` and remove them when finished.
+
+In a Git checkout, `npm ci` installs a pre-push check for every outgoing commit, including test files. It rejects non-example private IP addresses, private files and likely credentials. Use `192.168.1.100` for LAN examples and keep personal configuration in ignored directories. Existing custom hooks are preserved; call `node scripts/check-push.mjs "$@"` from your existing `pre-push`. GitHub Actions runs the same check on new commits.
 
 The current scope is macOS Apple Silicon, Windows x64 and the optional shared-library service. Keep both README languages aligned and describe actual validation in pull requests. Contributions are distributed under AGPL-3.0-only, with required third-party attribution retained.

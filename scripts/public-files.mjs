@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 
-const directories = /^(?:src|scripts|tests|docs|design|public|resources|android|ios|\.github)\//;
+const directories = /^(?:src|scripts|tests|docs|design|public|resources|android|ios|\.github|\.githooks)\//;
 const files = /^(?:(?:README|CONTRIBUTING|SECURITY)(?:\.[\w-]+)?\.md|LICENSE|index\.html|package(?:-lock)?\.json|tsconfig\.json|vite\.config\.ts|capacitor\.config\.ts|Dockerfile|compose(?:\.offline)?\.yaml|\.dockerignore|\.gitignore|\.gitattributes|\.node-version|\.env\.example)$/;
 
 export function hasProjectHistory(root = process.cwd()) {
@@ -42,16 +42,20 @@ export function publicFiles(root = process.cwd()) {
   return [...new Set(paths)].filter(name => (directories.test(name) || files.test(name)) && fs.existsSync(path.join(root, name))).sort();
 }
 
-export function scanPublicText(name, text) {
+export function scanPublicText(name, text, { historical = false } = {}) {
   const issues = [];
-  const textFile = /\.(?:md|ts|tsx|mjs|js|json|ya?ml|xml|gradle|properties|swift|txt)$/.test(name) || ['Dockerfile', '.env.example'].includes(name);
-  if (/\.(?:sqlite(?:-wal|-shm)?|db|keystore|p12|pfx|pem)$|(?:^|\/)\.env$/.test(name)) return [{ file: name, line: 0, reason: '私有资料或密钥文件' }];
+  const textFile = /\.(?:md|ts|tsx|mjs|cjs|js|json|ya?ml|xml|gradle|properties|swift|txt|sh|bat|ps1|html|css|svg|ini|conf|toml|csv|plist)$/.test(name) || ['Dockerfile', '.env.example'].includes(name) || name.startsWith('.githooks/');
+  const privateFile = /^(?:private|data|release|tmp|node_modules)\//.test(name) || /\.(?:sqlite(?:-wal|-shm)?|db|keystore|p12|pfx|pem)$/.test(name) || /(?:^|\/)\.env(?:\..+)?$/.test(name) && name !== '.env.example';
+  if (privateFile) return [{ file: name, line: 0, reason: '私有资料、密钥或本机构建文件' }];
   if (!textFile) return issues;
   for (const [index, line] of text.split('\n').entries()) {
     if (/(?:gh[pousr]_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{30,}|AKIA[0-9A-Z]{16}|-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----)/.test(line)) issues.push({ file: name, line: index + 1, reason: '疑似真实凭证' });
     if (!name.startsWith('tests/')) {
       if (/(?:\/Users\/|\/home\/)[A-Za-z0-9._-]+\//.test(line) || /[A-Z]:\\Users\\[A-Za-z0-9._-]+\\/.test(line)) issues.push({ file: name, line: index + 1, reason: '个人绝对路径' });
-      const addresses = line.match(/\b(?:192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(?:1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3})\b/g) || [];
+    }
+    if (!historical || !name.startsWith('tests/')) {
+      const joined = [...line.matchAll(/\[(?:\s*['"]?\d{1,3}['"]?\s*,){3}\s*['"]?\d{1,3}['"]?\s*\]\s*\.join\(\s*['"]\.['"]\s*\)/g)].map(match => match[0].match(/\d+/g).join('.'));
+      const addresses = (line + ' ' + joined.join(' ')).match(/\b(?:192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(?:1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3})\b/g) || [];
       if (addresses.some(address => address !== '192.168.1.100')) issues.push({ file: name, line: index + 1, reason: '非示例内网地址' });
     }
   }

@@ -30,6 +30,7 @@ jobs:
       - run: npm test
       - run: npm run build
       - run: npm run release:check
+      - run: node scripts/check-push.mjs --ci
       - run: npm run release:check -- --history
         if: matrix.os == 'ubuntu-24.04'
   collector:

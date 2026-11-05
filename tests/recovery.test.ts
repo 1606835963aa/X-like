@@ -113,8 +113,9 @@ test('诊断日志隐藏地址、个人路径和凭证，并给出常见启动�
   assert.match(startupExplanation({code:'ENOSPC'}),/空间/);
   assert.match(startupExplanation({code:'EADDRINUSE'}),/端口/);
   assert.equal(redactDiagnostic('ct0: hidden'),'ct0: [已隐藏]');
-  assert.ok(!redactDiagnostic('/home/alice/private '+['192','168','21','10'].join('.')).includes('alice'));
-  assert.ok(!redactDiagnostic('host '+['192','168','21','10'].join('.')).includes('192'));
+  const address='192.168.1.100';
+  assert.ok(!redactDiagnostic('/home/alice/private '+address).includes('alice'));
+  assert.ok(!redactDiagnostic('host '+address).includes(address));
 }));
 
 test('共享服务保留用户设置的目录权限，关闭可重复调用',async()=>{

@@ -31,11 +31,16 @@ test('共享服务配置读取资料目录拥有者，保留现有设置并拒�
 
 test('发布检查识别凭证和个人部署信息，保留公开示例与模拟测试',async()=>{
   const {scanPublicText}=await import(new URL('../scripts/public-files.mjs',import.meta.url).href);
-  assert.ok(scanPublicText('README.md','http://'+['192','168','21','10'].join('.')).length);
+  const address='192.168.1.100'.replace(/100$/,'42');
+  assert.ok(scanPublicText('README.md','http://'+address).length);
+  assert.ok(scanPublicText('tests/example.test.ts','http://'+address).length);
+  assert.ok(scanPublicText('tests/example.test.ts',JSON.stringify(address.split('.'))+'.join(".")').length);
   assert.equal(scanPublicText('README.md','http://192.168.1.100:5368').length,0);
   assert.ok(scanPublicText('src/config.ts','token='+('ghp_'+'a'.repeat(40))).length);
   assert.ok(scanPublicText('src/library.sqlite','').length);
-  assert.equal(scanPublicText('tests/example.test.ts','http://'+['10','2','3','4'].join('.')).length,0);
+  assert.equal(scanPublicText('tests/example.test.ts','http://192.168.1.100:5368').length,0);
+  assert.ok(scanPublicText('private/device.json','{}').length);
+  assert.ok(scanPublicText('.env.local','').length);
 });
 
 test('服务健康接口与桌面使用相同的应用版本',async()=>{
@@ -52,7 +57,7 @@ test('无 Git 历史的源码目录独立检查反馈文档，不借用上级仓
     mkdirSync(join(directory,'src'));mkdirSync(join(directory,'node_modules'));
     writeFileSync(join(directory,'SECURITY.md'),'安全反馈');
     writeFileSync(join(directory,'CONTRIBUTING.md'),'贡献说明');
-    writeFileSync(join(directory,'src','config.ts'),'const url="http://'+['10','2','3','4'].join('.')+'";');
+    writeFileSync(join(directory,'src','config.ts'),'const url="http://'+ '192.168.1.100'.replace(/100$/,'42')+'";');
     writeFileSync(join(directory,'src','.DS_Store'),'private Finder metadata');
     writeFileSync(join(directory,'src','._config.ts'),'private AppleDouble metadata');
     writeFileSync(join(directory,'node_modules','private.ts'),'token='+('ghp_'+'a'.repeat(40)));
